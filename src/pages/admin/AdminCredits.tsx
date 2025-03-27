@@ -56,17 +56,21 @@ const AdminCredits = () => {
     setLoading(true);
     
     try {
+      // Fix: Use a simpler query first to confirm we can get data
       const { data, error } = await supabase
         .from('credit_transactions')
         .select(`
           *,
-          profiles:user_id(full_name, username, email)
+          profiles(full_name, username, email)
         `)
         .order('created_at', { ascending: false });
       
       if (error) {
+        console.error("Supabase query error:", error);
         throw error;
       }
+      
+      console.log("Fetched transactions data:", data);
       
       // Cast properly to the expected type
       const typedData = data as unknown as TransactionWithUser[];
@@ -420,7 +424,7 @@ const TransactionsTable = ({
         {transactions.map((transaction) => (
           <TableRow key={transaction.id}>
             <TableCell>{format(new Date(transaction.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
-            <TableCell>{transaction.profiles.full_name || transaction.profiles.username}</TableCell>
+            <TableCell>{transaction.profiles.full_name || transaction.profiles.username || 'Usuário'}</TableCell>
             <TableCell>{transaction.amount}</TableCell>
             <TableCell>R$ {transaction.price.toFixed(2)}</TableCell>
             <TableCell>{transaction.payment_method === 'pix' ? 'PIX' : transaction.payment_method}</TableCell>
