@@ -37,11 +37,25 @@ serve(async (req) => {
       )
     }
 
-    // Update the user's credits in the profiles table
+    // Fetch the current credits value
+    const { data: profileData, error: fetchError } = await supabaseClient
+      .from('profiles')
+      .select('credits')
+      .eq('id', userId)
+      .single()
+
+    if (fetchError) {
+      throw fetchError
+    }
+
+    const currentCredits = profileData?.credits || 0
+    const newCredits = currentCredits + amount
+
+    // Update the user's credits in the profiles table with the calculated value
     const { data, error } = await supabaseClient
       .from('profiles')
       .update({ 
-        credits: supabaseClient.rpc('increment', { x: amount, row_id: userId, column_name: 'credits' }),
+        credits: newCredits,
         updated_at: new Date().toISOString()
       })
       .eq('id', userId)
