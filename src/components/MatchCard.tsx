@@ -48,9 +48,15 @@ export const MatchCard = ({ match }: MatchCardProps) => {
           
           <div className="flex flex-col items-center w-1/3">
             <div className="text-2xl font-semibold mb-1">VS</div>
-            <Link to={`/matches/${match.id}`}>
-              <Button className="scale-hover" size="sm">Palpitar</Button>
-            </Link>
+            <Button 
+              className="scale-hover" 
+              size="sm"
+              asChild
+            >
+              <Link to={`/matches/${match.id}`}>
+                Palpitar
+              </Link>
+            </Button>
           </div>
           
           <div className="flex flex-col items-center space-y-2 w-1/3">
