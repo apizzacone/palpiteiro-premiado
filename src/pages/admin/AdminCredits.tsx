@@ -1,341 +1,467 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
-import { CheckIcon, XIcon, EyeIcon } from "lucide-react";
-import { Tables } from "@/integrations/supabase/types";
 
-type TransactionWithUser = Tables<"credit_transactions"> & {
-  profiles: {
-    full_name: string | null;
-    username: string | null;
-    email?: string;
-  };
-};
+// Define proper types for the transactions and profile
+interface Transaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  price: number;
+  status: string;
+  payment_method: string;
+  receipt_url: string | null;
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+  approved_by: string | null;
+}
+
+interface Profile {
+  full_name: string | null;
+  username: string | null;
+  email?: string;
+}
+
+interface TransactionWithUser extends Transaction {
+  profiles: Profile;
+}
 
 const AdminCredits = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<TransactionWithUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithUser | null>(null);
-  const [viewReceiptOpen, setViewReceiptOpen] = useState(false);
-
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
+  
   useEffect(() => {
     fetchTransactions();
   }, []);
-
+  
   const fetchTransactions = async () => {
-    setIsLoading(true);
+    setLoading(true);
+    
     try {
       const { data, error } = await supabase
-        .from("credit_transactions")
+        .from('credit_transactions')
         .select(`
           *,
-          profiles:user_id (
-            full_name,
-            username
-          )
+          profiles:user_id(full_name, username, email)
         `)
-        .order("created_at", { ascending: false });
-
+        .order('created_at', { ascending: false });
+      
       if (error) {
         throw error;
       }
-
-      setTransactions(data as TransactionWithUser[]);
+      
+      // Cast properly to the expected type
+      const typedData = data as unknown as TransactionWithUser[];
+      setTransactions(typedData);
     } catch (error) {
-      console.error("Erro ao buscar transações:", error);
+      console.error("Error fetching transactions:", error);
       toast({
-        title: "Erro ao carregar dados",
+        title: "Erro",
         description: "Não foi possível carregar as transações.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
-  const handleApprove = async (transaction: TransactionWithUser) => {
-    if (!user) return;
+  
+  const handleApproveTransaction = async () => {
+    if (!selectedTransaction) return;
     
     try {
-      // 1. Atualizar o status da transação
+      // Update transaction status
       const { error: updateError } = await supabase
-        .from("credit_transactions")
+        .from('credit_transactions')
         .update({
-          status: "approved",
-          approved_by: user.id,
+          status: 'approved',
           approved_at: new Date().toISOString(),
+          approved_by: (await supabase.auth.getUser()).data.user?.id
         })
-        .eq("id", transaction.id);
-
+        .eq('id', selectedTransaction.id);
+      
       if (updateError) throw updateError;
-
-      // 2. Adicionar créditos ao perfil do usuário
-      const { error: creditsError } = await supabase
-        .from("profiles")
-        .update({
-          credits: supabase.rpc("increment", { x: transaction.amount }),
-        })
-        .eq("id", transaction.user_id);
-
-      if (creditsError) throw creditsError;
-
-      // 3. Atualizar a lista de transações
+      
+      // Call Supabase Edge Function to increment user credits
+      const { error: functionError } = await supabase.functions.invoke('increment_credits', {
+        body: {
+          userId: selectedTransaction.user_id,
+          amount: selectedTransaction.amount
+        }
+      });
+      
+      if (functionError) throw functionError;
+      
+      // Refresh transactions list
       fetchTransactions();
-
+      
       toast({
-        title: "Pagamento aprovado",
-        description: `${transaction.amount} créditos foram adicionados à conta do usuário.`,
+        title: "Aprovado",
+        description: `Créditos adicionados à conta do usuário.`,
       });
     } catch (error) {
-      console.error("Erro ao aprovar transação:", error);
+      console.error("Error approving transaction:", error);
       toast({
-        title: "Erro ao aprovar pagamento",
-        description: "Não foi possível processar a aprovação.",
+        title: "Erro",
+        description: "Não foi possível aprovar a transação.",
         variant: "destructive",
       });
+    } finally {
+      setIsApproveDialogOpen(false);
+      setSelectedTransaction(null);
     }
   };
-
-  const handleReject = async (transaction: TransactionWithUser) => {
-    if (!user) return;
+  
+  const handleRejectTransaction = async () => {
+    if (!selectedTransaction) return;
     
     try {
+      // Update transaction status
       const { error } = await supabase
-        .from("credit_transactions")
+        .from('credit_transactions')
         .update({
-          status: "rejected",
-          approved_by: user.id,
+          status: 'rejected',
           approved_at: new Date().toISOString(),
+          approved_by: (await supabase.auth.getUser()).data.user?.id
         })
-        .eq("id", transaction.id);
-
+        .eq('id', selectedTransaction.id);
+      
       if (error) throw error;
-
+      
+      // Refresh transactions list
       fetchTransactions();
-
+      
       toast({
-        title: "Pagamento rejeitado",
-        description: "A solicitação de créditos foi rejeitada.",
+        title: "Rejeitado",
+        description: "A transação foi rejeitada.",
       });
     } catch (error) {
-      console.error("Erro ao rejeitar transação:", error);
+      console.error("Error rejecting transaction:", error);
       toast({
-        title: "Erro ao rejeitar pagamento",
-        description: "Não foi possível processar a rejeição.",
+        title: "Erro",
+        description: "Não foi possível rejeitar a transação.",
         variant: "destructive",
       });
+    } finally {
+      setIsRejectDialogOpen(false);
+      setSelectedTransaction(null);
     }
   };
-
-  const getStatusBadge = (status: string) => {
-    const statusStyles = {
-      pending: "bg-yellow-100 text-yellow-800",
-      approved: "bg-green-100 text-green-800",
-      rejected: "bg-red-100 text-red-800",
-    };
-
-    const statusNames = {
-      pending: "Pendente",
-      approved: "Aprovado",
-      rejected: "Rejeitado",
-    };
-
-    const style = statusStyles[status as keyof typeof statusStyles] || "bg-gray-100";
-    const name = statusNames[status as keyof typeof statusNames] || status;
-
-    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${style}`}>{name}</span>;
+  
+  const openApproveDialog = (transaction: TransactionWithUser) => {
+    setSelectedTransaction(transaction);
+    setIsApproveDialogOpen(true);
   };
-
+  
+  const openRejectDialog = (transaction: TransactionWithUser) => {
+    setSelectedTransaction(transaction);
+    setIsRejectDialogOpen(true);
+  };
+  
+  const openReceiptDialog = (transaction: TransactionWithUser) => {
+    setSelectedTransaction(transaction);
+    setIsReceiptDialogOpen(true);
+  };
+  
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-100 text-green-800">Aprovado</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-100 text-red-800">Rejeitado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+  
   return (
     <AdminLayout>
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Gerenciar Solicitações de Créditos</CardTitle>
-          <CardDescription>
-            Aprove ou rejeite as solicitações de compra de créditos dos usuários
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-4">Carregando transações...</div>
-          ) : transactions.length === 0 ? (
-            <div className="text-center py-4">Nenhuma transação encontrada.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>Método</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Créditos</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>
-                        {format(new Date(transaction.created_at), "dd/MM/yyyy HH:mm")}
-                      </TableCell>
-                      <TableCell>
-                        {transaction.profiles?.full_name || 
-                         transaction.profiles?.username || 
-                         transaction.user_id.substring(0, 8)}
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {transaction.payment_method}
-                      </TableCell>
-                      <TableCell>
-                        R$ {parseFloat(transaction.price.toString()).toFixed(2)}
-                      </TableCell>
-                      <TableCell>{transaction.amount}</TableCell>
-                      <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          {transaction.receipt_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTransaction(transaction);
-                                setViewReceiptOpen(true);
-                              }}
-                            >
-                              <EyeIcon className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          {transaction.status === "pending" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-green-50 hover:bg-green-100 border-green-200 text-green-600"
-                                onClick={() => handleApprove(transaction)}
-                              >
-                                <CheckIcon className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-red-50 hover:bg-red-100 border-red-200 text-red-600"
-                                onClick={() => handleReject(transaction)}
-                              >
-                                <XIcon className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialog para visualizar o comprovante */}
-      <Dialog open={viewReceiptOpen} onOpenChange={setViewReceiptOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Comprovante de Pagamento</DialogTitle>
-            <DialogDescription>
-              Comprovante enviado pelo usuário {selectedTransaction?.profiles?.full_name || selectedTransaction?.profiles?.username}
-            </DialogDescription>
-          </DialogHeader>
+      <div className="container py-10">
+        <h1 className="text-3xl font-bold mb-6">Gerenciamento de Créditos</h1>
+        
+        <Tabs defaultValue="pending">
+          <TabsList className="mb-4">
+            <TabsTrigger value="pending">Pendentes</TabsTrigger>
+            <TabsTrigger value="all">Todos</TabsTrigger>
+          </TabsList>
           
-          <div className="flex justify-center items-center py-4">
-            {selectedTransaction?.receipt_url && (
-              <div className="w-full">
-                <img 
-                  src={selectedTransaction.receipt_url} 
-                  alt="Comprovante" 
-                  className="max-w-full h-auto border rounded"
+          <TabsContent value="pending">
+            <Card>
+              <CardHeader>
+                <CardTitle>Transações Pendentes</CardTitle>
+                <CardDescription>
+                  Avalie e aprove ou rejeite as solicitações de compra de créditos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TransactionsTable 
+                  transactions={transactions.filter(t => t.status === 'pending')}
+                  loading={loading}
+                  onApprove={openApproveDialog}
+                  onReject={openRejectDialog}
+                  onViewReceipt={openReceiptDialog}
+                  renderStatusBadge={renderStatusBadge}
                 />
-                <div className="mt-4">
-                  <a 
-                    href={selectedTransaction.receipt_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    Abrir em nova aba
-                  </a>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="all">
+            <Card>
+              <CardHeader>
+                <CardTitle>Todas as Transações</CardTitle>
+                <CardDescription>
+                  Histórico completo de todas as transações de créditos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TransactionsTable 
+                  transactions={transactions}
+                  loading={loading}
+                  onApprove={openApproveDialog}
+                  onReject={openRejectDialog}
+                  onViewReceipt={openReceiptDialog}
+                  renderStatusBadge={renderStatusBadge}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+        
+        {/* Approve Dialog */}
+        <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Aprovar Transação</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja aprovar esta transação? Os créditos serão adicionados à conta do usuário.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedTransaction && (
+              <div className="py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Usuário</Label>
+                    <div className="font-medium">{selectedTransaction.profiles.full_name || selectedTransaction.profiles.username}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Valor</Label>
+                    <div className="font-medium">R$ {selectedTransaction.price.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Créditos</Label>
+                    <div className="font-medium">{selectedTransaction.amount} créditos</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Data</Label>
+                    <div className="font-medium">{format(new Date(selectedTransaction.created_at), 'dd/MM/yyyy HH:mm')}</div>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            {selectedTransaction?.status === "pending" && (
-              <>
-                <Button
-                  variant="outline"
-                  className="bg-green-50 hover:bg-green-100 border-green-200 text-green-600"
-                  onClick={() => {
-                    handleApprove(selectedTransaction);
-                    setViewReceiptOpen(false);
-                  }}
-                >
-                  <CheckIcon className="h-4 w-4 mr-2" /> Aprovar
-                </Button>
-                <Button
-                  variant="outline"
-                  className="bg-red-50 hover:bg-red-100 border-red-200 text-red-600"
-                  onClick={() => {
-                    handleReject(selectedTransaction);
-                    setViewReceiptOpen(false);
-                  }}
-                >
-                  <XIcon className="h-4 w-4 mr-2" /> Rejeitar
-                </Button>
-              </>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleApproveTransaction} className="bg-green-600 hover:bg-green-700">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Aprovar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Reject Dialog */}
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rejeitar Transação</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja rejeitar esta transação? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedTransaction && (
+              <div className="py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Usuário</Label>
+                    <div className="font-medium">{selectedTransaction.profiles.full_name || selectedTransaction.profiles.username}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Valor</Label>
+                    <div className="font-medium">R$ {selectedTransaction.price.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Créditos</Label>
+                    <div className="font-medium">{selectedTransaction.amount} créditos</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Data</Label>
+                    <div className="font-medium">{format(new Date(selectedTransaction.created_at), 'dd/MM/yyyy HH:mm')}</div>
+                  </div>
+                </div>
+              </div>
             )}
-            <Button
-              variant="outline"
-              onClick={() => setViewReceiptOpen(false)}
-            >
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleRejectTransaction}>
+                <XCircle className="w-4 h-4 mr-2" />
+                Rejeitar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Receipt Dialog */}
+        <Dialog open={isReceiptDialogOpen} onOpenChange={setIsReceiptDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Comprovante de Pagamento</DialogTitle>
+            </DialogHeader>
+            
+            {selectedTransaction && selectedTransaction.receipt_url && (
+              <div className="py-4">
+                <div className="max-h-[70vh] overflow-auto">
+                  <img 
+                    src={selectedTransaction.receipt_url} 
+                    alt="Comprovante de pagamento" 
+                    className="w-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsReceiptDialogOpen(false)}>
+                Fechar
+              </Button>
+              {selectedTransaction && selectedTransaction.status === 'pending' && (
+                <>
+                  <Button variant="destructive" onClick={() => {
+                    setIsReceiptDialogOpen(false);
+                    openRejectDialog(selectedTransaction);
+                  }}>
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Rejeitar
+                  </Button>
+                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => {
+                    setIsReceiptDialogOpen(false);
+                    openApproveDialog(selectedTransaction);
+                  }}>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Aprovar
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </AdminLayout>
+  );
+};
+
+// Helper component for the transactions table
+const TransactionsTable = ({ 
+  transactions, 
+  loading, 
+  onApprove, 
+  onReject, 
+  onViewReceipt,
+  renderStatusBadge
+}) => {
+  if (loading) {
+    return <div className="py-8 text-center">Carregando transações...</div>;
+  }
+  
+  if (transactions.length === 0) {
+    return <div className="py-8 text-center">Nenhuma transação encontrada.</div>;
+  }
+  
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Data</TableHead>
+          <TableHead>Usuário</TableHead>
+          <TableHead>Créditos</TableHead>
+          <TableHead>Valor</TableHead>
+          <TableHead>Método</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Ações</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {transactions.map((transaction) => (
+          <TableRow key={transaction.id}>
+            <TableCell>{format(new Date(transaction.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
+            <TableCell>{transaction.profiles.full_name || transaction.profiles.username}</TableCell>
+            <TableCell>{transaction.amount}</TableCell>
+            <TableCell>R$ {transaction.price.toFixed(2)}</TableCell>
+            <TableCell>{transaction.payment_method === 'pix' ? 'PIX' : transaction.payment_method}</TableCell>
+            <TableCell>{renderStatusBadge(transaction.status)}</TableCell>
+            <TableCell className="text-right">
+              <div className="flex justify-end gap-2">
+                {transaction.receipt_url && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => onViewReceipt(transaction)}
+                  >
+                    Ver comprovante
+                  </Button>
+                )}
+                
+                {transaction.status === 'pending' && (
+                  <>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => onReject(transaction)}
+                    >
+                      Rejeitar
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => onApprove(transaction)}
+                    >
+                      Aprovar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 };
 

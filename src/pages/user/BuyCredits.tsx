@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,7 +44,7 @@ import {
   DrawerHeader, 
   DrawerTitle 
 } from "@/components/ui/drawer";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const creditPackages = [
@@ -59,7 +58,7 @@ const BuyCredits = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   
   const [selectedPackage, setSelectedPackage] = useState(creditPackages[0]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -69,7 +68,6 @@ const BuyCredits = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  // Pix código "fake" para simulação
   const pixCode = `00020126330014BR.GOV.BCB.PIX0111123456789012520400005303986540${selectedPackage.price.toFixed(2).replace('.', '')}5802BR5913Palpiteiro6008Sao Paulo62150511${selectedPackage.id}0000000063044682`;
 
   const handleCopyPix = () => {
@@ -95,7 +93,6 @@ const BuyCredits = () => {
     setIsLoading(true);
     
     try {
-      // Upload do comprovante para o Storage
       const fileExt = receiptFile.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       
@@ -107,12 +104,10 @@ const BuyCredits = () => {
         throw uploadError;
       }
       
-      // Obter URL pública do arquivo
       const { data: urlData } = await supabase.storage
         .from('payment_receipts')
         .getPublicUrl(fileName);
       
-      // Criar transação no banco de dados
       const { error: transactionError } = await supabase
         .from('credit_transactions')
         .insert({
@@ -128,7 +123,6 @@ const BuyCredits = () => {
         throw transactionError;
       }
       
-      // Fechar modal e mostrar confirmação
       setIsReceiptOpen(false);
       setIsCompleted(true);
       
@@ -148,7 +142,6 @@ const BuyCredits = () => {
     }
   };
 
-  // Componente de confirmação
   const ConfirmationComponent = () => (
     <>
       <div className="text-center mb-6">
@@ -206,8 +199,7 @@ const BuyCredits = () => {
       </DialogFooter>
     </>
   );
-  
-  // Componente de envio de comprovante
+
   const ReceiptComponent = () => (
     <>
       <div className="text-center mb-6">
@@ -253,8 +245,7 @@ const BuyCredits = () => {
       </DialogFooter>
     </>
   );
-  
-  // Componente após a conclusão
+
   const CompletedComponent = () => (
     <div className="py-8 px-4 text-center">
       <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -368,7 +359,6 @@ const BuyCredits = () => {
           </div>
         </div>
 
-        {/* Modal de confirmação em dispositivos móveis ou desktop */}
         {isMobile ? (
           <Drawer open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
             <DrawerContent>
@@ -401,7 +391,6 @@ const BuyCredits = () => {
           </Dialog>
         )}
 
-        {/* Modal de envio de comprovante */}
         {isMobile ? (
           <Drawer open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
             <DrawerContent>
