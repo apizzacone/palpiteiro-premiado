@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import MatchesLoading from "@/components/match/MatchesLoading";
@@ -29,7 +28,7 @@ const Predictions = () => {
       try {
         setLoading(true);
         
-        // Fetch matches that are scheduled
+        // Buscar partidas agendadas
         const { data: matchesData, error } = await supabase
           .from('matches')
           .select(`
@@ -50,13 +49,13 @@ const Predictions = () => {
         if (error) throw error;
         
         if (matchesData && matchesData.length > 0) {
-          // Extract unique team IDs and championship IDs
+          // Extrair IDs únicos de times e campeonatos
           const teamIds = matchesData.flatMap(match => [match.home_team_id, match.away_team_id]);
           const uniqueTeamIds = [...new Set(teamIds)];
           
           const championshipIds = [...new Set(matchesData.map(match => match.championship_id))];
           
-          // Fetch teams data
+          // Buscar dados dos times
           const { data: teamsData, error: teamsError } = await supabase
             .from('teams')
             .select('*')
@@ -64,7 +63,7 @@ const Predictions = () => {
             
           if (teamsError) throw teamsError;
           
-          // Fetch championships data
+          // Buscar dados dos campeonatos
           const { data: championshipsData, error: championshipsError } = await supabase
             .from('championships')
             .select('*')
@@ -72,7 +71,7 @@ const Predictions = () => {
             
           if (championshipsError) throw championshipsError;
           
-          // Create maps for quick lookups
+          // Criar maps para consultas rápidas
           const teamsMap = new Map();
           teamsData?.forEach(team => {
             teamsMap.set(team.id, {
@@ -94,16 +93,16 @@ const Predictions = () => {
             });
           });
           
-          // Transform raw data into Match objects
+          // Transformar dados brutos em objetos Match
           const formattedMatches = matchesData.map(match => {
             const homeTeam = teamsMap.get(match.home_team_id);
             const awayTeam = teamsMap.get(match.away_team_id);
             const championship = championshipsMap.get(match.championship_id);
             
-            // Make sure status is one of the allowed values in our Match type
-            const status = match.status === "scheduled" || match.status === "live" || match.status === "finished" 
+            // Garantir que o status é um dos valores permitidos em nosso tipo Match
+            const status = (match.status === "scheduled" || match.status === "live" || match.status === "finished") 
               ? (match.status as "scheduled" | "live" | "finished")
-              : "scheduled" as const; // Type assertion to match the union type
+              : "scheduled" as const;
             
             return {
               id: match.id,
@@ -124,7 +123,7 @@ const Predictions = () => {
           setMatches([]);
         }
       } catch (error) {
-        console.error("Error fetching matches:", error);
+        console.error("Erro ao carregar partidas:", error);
         toast.error("Erro ao carregar partidas");
       } finally {
         setLoading(false);
@@ -164,14 +163,45 @@ const Predictions = () => {
         return;
       }
 
-      // Here we would send the prediction to the backend
-      // For now, just show a success message
+      // Enviar palpite para o backend
+      const { error } = await supabase
+        .from('predictions')
+        .insert({
+          match_id: selectedMatch.id,
+          user_id: profile.id,
+          home_score: homeScoreNum,
+          away_score: awayScoreNum
+        });
+        
+      if (error) {
+        console.error("Erro ao registrar palpite:", error);
+        throw error;
+      }
+      
+      // Atualizar créditos do usuário
+      const { error: creditError } = await supabase
+        .from('profiles')
+        .update({ 
+          credits: profile.credits - selectedMatch.predictionCost 
+        })
+        .eq('id', profile.id);
+        
+      if (creditError) {
+        console.error("Erro ao atualizar créditos:", creditError);
+        throw creditError;
+      }
+      
       toast.success("Palpite registrado com sucesso!");
       
-      // Reset the form
+      // Resetar o formulário
       setSelectedMatch(null);
       setHomeScore("");
       setAwayScore("");
+      
+      // Recarregar a página para atualizar os créditos
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
       console.error("Erro ao registrar palpite:", error);
       toast.error("Erro ao registrar palpite");
@@ -337,6 +367,7 @@ const Predictions = () => {
                                 value={homeScore}
                                 onChange={(e) => setHomeScore(e.target.value)}
                                 className="w-20 text-center text-lg"
+                                disabled={!profile}
                               />
                             </div>
                             
@@ -351,15 +382,38 @@ const Predictions = () => {
                                 value={awayScore}
                                 onChange={(e) => setAwayScore(e.target.value)}
                                 className="w-20 text-center text-lg"
+                                disabled={!profile}
                               />
                             </div>
                           </div>
+                          
+                          {!profile && (
+                            <div className="mt-4 p-3 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300 rounded-md text-center mb-6">
+                              Você precisa estar logado para fazer palpites.
+                              <div className="mt-3">
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  onClick={() => navigate("/auth?tab=login")}
+                                >
+                                  Fazer login
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {profile && profile.credits < selectedMatch.predictionCost && (
+                            <div className="mt-4 p-3 bg-destructive/10 text-destructive rounded-md text-center mb-6">
+                              Você não tem créditos suficientes para fazer este palpite. 
+                              <br />Necessário: {selectedMatch.predictionCost} créditos.
+                            </div>
+                          )}
                           
                           <div className="flex justify-center">
                             <Button 
                               size="lg" 
                               onClick={handlePrediction}
-                              disabled={homeScore === "" || awayScore === "" || isSubmitting}
+                              disabled={homeScore === "" || awayScore === "" || !profile || (profile && profile.credits < selectedMatch.predictionCost) || isSubmitting}
                             >
                               {isSubmitting ? "Processando..." : "Confirmar Palpite"}
                             </Button>
@@ -368,7 +422,7 @@ const Predictions = () => {
                           <div className="mt-6 text-center text-sm text-muted-foreground">
                             Seus créditos atuais: <span className="font-medium text-foreground">{profile?.credits || 0} créditos</span>
                             
-                            {profile && profile.credits < (selectedMatch?.predictionCost || 0) && (
+                            {profile && profile.credits < selectedMatch.predictionCost && (
                               <div className="mt-2">
                                 <Button 
                                   variant="outline" 

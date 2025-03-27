@@ -3,9 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Match } from "@/types";
-import { currentUser } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MatchPredictionFormProps {
   match: Match;
@@ -17,9 +17,9 @@ const MatchPredictionForm = ({ match }: MatchPredictionFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { profile } = useAuth();
   
-  const userCredits = profile?.credits || currentUser.credits;
+  const userCredits = profile?.credits || 0;
 
-  const handlePrediction = () => {
+  const handlePrediction = async () => {
     setIsSubmitting(true);
     
     try {
@@ -36,15 +36,53 @@ const MatchPredictionForm = ({ match }: MatchPredictionFormProps) => {
         return;
       }
       
+      if (!profile) {
+        toast.error("Você precisa estar logado para fazer palpites");
+        return;
+      }
+      
       if (userCredits < match.predictionCost) {
         toast.error(`Você não tem créditos suficientes. Necessário: ${match.predictionCost} créditos`);
         return;
       }
       
-      // Here we would send the prediction to the backend
+      // Enviar palpite para o backend
+      const { error } = await supabase
+        .from('predictions')
+        .insert({
+          match_id: match.id,
+          user_id: profile.id,
+          home_score: homeScoreNum,
+          away_score: awayScoreNum
+        });
+        
+      if (error) {
+        console.error("Erro ao registrar palpite:", error);
+        throw error;
+      }
+      
+      // Atualizar créditos do usuário
+      const { error: creditError } = await supabase
+        .from('profiles')
+        .update({ 
+          credits: userCredits - match.predictionCost 
+        })
+        .eq('id', profile.id);
+        
+      if (creditError) {
+        console.error("Erro ao atualizar créditos:", creditError);
+        throw creditError;
+      }
+      
       toast.success("Palpite registrado com sucesso!");
       setHomeScore("");
       setAwayScore("");
+      
+      // Recarregar a página para atualizar os créditos
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
     } catch (error) {
       console.error("Erro ao registrar palpite:", error);
       toast.error("Erro ao registrar palpite");
@@ -68,7 +106,7 @@ const MatchPredictionForm = ({ match }: MatchPredictionFormProps) => {
             value={homeScore}
             onChange={(e) => setHomeScore(e.target.value)}
             className="w-20 text-center text-lg"
-            disabled={notEnoughCredits}
+            disabled={notEnoughCredits || !profile}
           />
         </div>
         
@@ -83,12 +121,18 @@ const MatchPredictionForm = ({ match }: MatchPredictionFormProps) => {
             value={awayScore}
             onChange={(e) => setAwayScore(e.target.value)}
             className="w-20 text-center text-lg"
-            disabled={notEnoughCredits}
+            disabled={notEnoughCredits || !profile}
           />
         </div>
       </div>
 
-      {notEnoughCredits && (
+      {!profile && (
+        <div className="mt-4 p-3 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300 rounded-md text-center">
+          Você precisa estar logado para fazer palpites.
+        </div>
+      )}
+
+      {profile && notEnoughCredits && (
         <div className="mt-4 p-3 bg-destructive/10 text-destructive rounded-md text-center">
           Você não tem créditos suficientes para fazer este palpite. 
           <br />Necessário: {match.predictionCost} créditos.
@@ -99,7 +143,7 @@ const MatchPredictionForm = ({ match }: MatchPredictionFormProps) => {
         <Button 
           size="lg" 
           onClick={handlePrediction}
-          disabled={homeScore === "" || awayScore === "" || notEnoughCredits || isSubmitting}
+          disabled={homeScore === "" || awayScore === "" || notEnoughCredits || !profile || isSubmitting}
         >
           {isSubmitting ? "Processando..." : "Confirmar Palpite"}
         </Button>
@@ -107,7 +151,7 @@ const MatchPredictionForm = ({ match }: MatchPredictionFormProps) => {
       
       <div className="mt-6 text-center text-sm text-muted-foreground">
         Seus créditos atuais: <span className="font-medium text-foreground">{userCredits} créditos</span>
-        {notEnoughCredits && (
+        {profile && notEnoughCredits && (
           <div className="mt-2">
             <Button 
               variant="outline" 

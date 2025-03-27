@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { Match } from "@/types";
-import { matches } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useMatchDetail = (id: string | undefined) => {
@@ -12,18 +11,15 @@ export const useMatchDetail = (id: string | undefined) => {
   useEffect(() => {
     const fetchMatch = async () => {
       try {
-        setLoading(true);
-        console.log("Fetching match with ID:", id);
-        
-        // First attempt to get match from mock data for development
-        const mockMatch = matches.find(m => m.id === id);
-        if (mockMatch) {
-          setMatch(mockMatch);
+        if (!id) {
           setLoading(false);
           return;
         }
         
-        // If mock match not found, try to fetch from Supabase
+        setLoading(true);
+        console.log("Buscando partida com ID:", id);
+        
+        // Buscar dados da partida
         const { data: matchData, error } = await supabase
           .from('matches')
           .select(`
@@ -42,11 +38,11 @@ export const useMatchDetail = (id: string | undefined) => {
           .single();
           
         if (error) {
-          console.error("Error fetching match:", error);
+          console.error("Erro ao buscar partida:", error);
           throw error;
         }
         
-        // Get teams data
+        // Buscar dados do time da casa
         const { data: homeTeamData, error: homeTeamError } = await supabase
           .from('teams')
           .select('*')
@@ -55,6 +51,7 @@ export const useMatchDetail = (id: string | undefined) => {
           
         if (homeTeamError) throw homeTeamError;
         
+        // Buscar dados do time visitante
         const { data: awayTeamData, error: awayTeamError } = await supabase
           .from('teams')
           .select('*')
@@ -63,7 +60,7 @@ export const useMatchDetail = (id: string | undefined) => {
           
         if (awayTeamError) throw awayTeamError;
         
-        // Get championship data
+        // Buscar dados do campeonato
         const { data: championshipData, error: championshipError } = await supabase
           .from('championships')
           .select('*')
@@ -72,13 +69,13 @@ export const useMatchDetail = (id: string | undefined) => {
           
         if (championshipError) throw championshipError;
         
-        // Ensure status is one of the allowed values
+        // Garantir que o status é um dos valores permitidos
         let validStatus: "scheduled" | "live" | "finished" = "scheduled";
         if (matchData.status === "live" || matchData.status === "finished") {
           validStatus = matchData.status;
         }
         
-        // Construct match object
+        // Construir o objeto da partida
         const formattedMatch: Match = {
           id: matchData.id,
           homeTeam: {
@@ -110,16 +107,14 @@ export const useMatchDetail = (id: string | undefined) => {
         
         setMatch(formattedMatch);
       } catch (error) {
-        console.error("Error in fetchMatch:", error);
+        console.error("Erro em fetchMatch:", error);
         setError(error as Error);
       } finally {
         setLoading(false);
       }
     };
     
-    if (id) {
-      fetchMatch();
-    }
+    fetchMatch();
   }, [id]);
 
   return { match, loading, error };

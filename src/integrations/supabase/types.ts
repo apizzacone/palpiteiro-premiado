@@ -168,6 +168,44 @@ export type Database = {
           },
         ]
       }
+      predictions: {
+        Row: {
+          away_score: number
+          created_at: string
+          home_score: number
+          id: string
+          match_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          away_score: number
+          created_at?: string
+          home_score: number
+          id?: string
+          match_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          away_score?: number
+          created_at?: string
+          home_score?: number
+          id?: string
+          match_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
