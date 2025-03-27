@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
-// Define proper types for the transactions and profile
 interface Transaction {
   id: string;
   user_id: string;
@@ -56,7 +54,6 @@ const AdminCredits = () => {
     setLoading(true);
     
     try {
-      // Fix: Use a simpler query first to confirm we can get data
       const { data, error } = await supabase
         .from('credit_transactions')
         .select(`
@@ -72,7 +69,6 @@ const AdminCredits = () => {
       
       console.log("Fetched transactions data:", data);
       
-      // Cast properly to the expected type
       const typedData = data as unknown as TransactionWithUser[];
       setTransactions(typedData);
     } catch (error) {
@@ -91,7 +87,6 @@ const AdminCredits = () => {
     if (!selectedTransaction) return;
     
     try {
-      // Update transaction status
       const { error: updateError } = await supabase
         .from('credit_transactions')
         .update({
@@ -103,7 +98,6 @@ const AdminCredits = () => {
       
       if (updateError) throw updateError;
       
-      // Call Supabase Edge Function to increment user credits
       const { error: functionError } = await supabase.functions.invoke('increment_credits', {
         body: {
           userId: selectedTransaction.user_id,
@@ -113,7 +107,6 @@ const AdminCredits = () => {
       
       if (functionError) throw functionError;
       
-      // Refresh transactions list
       fetchTransactions();
       
       toast({
@@ -137,7 +130,6 @@ const AdminCredits = () => {
     if (!selectedTransaction) return;
     
     try {
-      // Update transaction status
       const { error } = await supabase
         .from('credit_transactions')
         .update({
@@ -149,7 +141,6 @@ const AdminCredits = () => {
       
       if (error) throw error;
       
-      // Refresh transactions list
       fetchTransactions();
       
       toast({
@@ -251,7 +242,6 @@ const AdminCredits = () => {
           </TabsContent>
         </Tabs>
         
-        {/* Approve Dialog */}
         <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -296,7 +286,6 @@ const AdminCredits = () => {
           </DialogContent>
         </Dialog>
         
-        {/* Reject Dialog */}
         <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -341,7 +330,6 @@ const AdminCredits = () => {
           </DialogContent>
         </Dialog>
         
-        {/* Receipt Dialog */}
         <Dialog open={isReceiptDialogOpen} onOpenChange={setIsReceiptDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
@@ -390,7 +378,6 @@ const AdminCredits = () => {
   );
 };
 
-// Helper component for the transactions table
 const TransactionsTable = ({ 
   transactions, 
   loading, 
