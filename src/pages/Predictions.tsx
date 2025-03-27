@@ -92,11 +92,16 @@ const Predictions = () => {
             });
           });
           
-          // Transform raw data into Match objects
+          // Transform raw data into Match objects with proper type casting for status
           const formattedMatches = matchesData.map(match => {
             const homeTeam = teamsMap.get(match.home_team_id);
             const awayTeam = teamsMap.get(match.away_team_id);
             const championship = championshipsMap.get(match.championship_id);
+            
+            // Ensure status is one of the allowed values in our type
+            const status = match.status === "scheduled" || match.status === "live" || match.status === "finished" 
+              ? match.status as "scheduled" | "live" | "finished"
+              : "scheduled"; // Default to scheduled if unknown status
             
             return {
               id: match.id,
@@ -104,7 +109,7 @@ const Predictions = () => {
               awayTeam,
               championship,
               date: new Date(match.date),
-              status: match.status,
+              status,
               homeScore: match.home_score,
               awayScore: match.away_score,
               predictionCost: match.prediction_cost,

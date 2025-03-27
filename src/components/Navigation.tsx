@@ -13,35 +13,35 @@ const Navigation = () => {
     <NavigationMenu className="hidden md:flex">
       <NavigationMenuList>
         <NavigationMenuItem>
-          <Link to="/" legacyBehavior passHref>
+          <Link to="/">
             <NavigationMenuLink className={navigationMenuTriggerStyle()}>
               Início
             </NavigationMenuLink>
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/matches" legacyBehavior passHref>
+          <Link to="/matches">
             <NavigationMenuLink className={navigationMenuTriggerStyle()}>
               Partidas
             </NavigationMenuLink>
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/predictions" legacyBehavior passHref>
+          <Link to="/predictions">
             <NavigationMenuLink className={navigationMenuTriggerStyle()}>
               Palpites
             </NavigationMenuLink>
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/championships" legacyBehavior passHref>
+          <Link to="/championships">
             <NavigationMenuLink className={navigationMenuTriggerStyle()}>
               Campeonatos
             </NavigationMenuLink>
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/teams" legacyBehavior passHref>
+          <Link to="/teams">
             <NavigationMenuLink className={navigationMenuTriggerStyle()}>
               Times
             </NavigationMenuLink>
