@@ -26,7 +26,6 @@ interface Transaction {
   updated_at: string;
   approved_at: string | null;
   approved_by: string | null;
-  user_email?: string;
   user_full_name?: string | null;
   user_username?: string | null;
 }
@@ -61,34 +60,42 @@ const AdminCredits = () => {
       
       if (!transactionsData || transactionsData.length === 0) {
         setTransactions([]);
+        setLoading(false);
         return;
       }
       
       // Then, fetch user information for each transaction
       const transactionsWithUserInfo = await Promise.all(
         transactionsData.map(async (transaction) => {
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('full_name, username, email')
-            .eq('id', transaction.user_id)
-            .single();
-          
-          if (userError) {
-            console.warn(`Could not fetch user info for transaction ${transaction.id}:`, userError);
+          try {
+            const { data: userData, error: userError } = await supabase
+              .from('profiles')
+              .select('full_name, username')
+              .eq('id', transaction.user_id)
+              .single();
+            
+            if (userError) {
+              console.warn(`Could not fetch user info for transaction ${transaction.id}:`, userError);
+              return {
+                ...transaction,
+                user_full_name: null,
+                user_username: null
+              };
+            }
+            
+            return {
+              ...transaction,
+              user_full_name: userData?.full_name,
+              user_username: userData?.username
+            };
+          } catch (error) {
+            console.error(`Error processing transaction ${transaction.id}:`, error);
             return {
               ...transaction,
               user_full_name: null,
-              user_username: null,
-              user_email: null
+              user_username: null
             };
           }
-          
-          return {
-            ...transaction,
-            user_full_name: userData?.full_name,
-            user_username: userData?.username,
-            user_email: userData?.email
-          };
         })
       );
       
