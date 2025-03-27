@@ -8,12 +8,50 @@ import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { matches, teams, championships } from "@/lib/mock-data";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Team } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
+  const [loading, setLoading] = useState(true);
+  const [featuredTeams, setFeaturedTeams] = useState<Team[]>([]);
+  
   // Only show first 3 of each for the homepage
   const upcomingMatches = matches.slice(0, 3);
-  const featuredTeams = teams.slice(0, 6);
   const featuredChampionships = championships.slice(0, 3);
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('name')
+          .limit(6);
+          
+        if (error) throw error;
+        
+        const teamsData: Team[] = data?.map(team => ({
+          id: team.id,
+          name: team.name,
+          country: team.country,
+          logo: team.logo || "/placeholder.svg"
+        })) || [];
+        
+        setFeaturedTeams(teamsData);
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+        // Fallback to mock data if there's an error
+        setFeaturedTeams(teams.slice(0, 6));
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTeams();
+  }, []);
 
   return (
     <Layout>
@@ -49,11 +87,18 @@ const Index = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {featuredTeams.map(team => (
-              <TeamCard key={team.id} team={team} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+              <span>Carregando times...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              {featuredTeams.map(team => (
+                <TeamCard key={team.id} team={team} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
       

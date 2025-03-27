@@ -20,6 +20,10 @@ export const MatchCard = ({ match }: MatchCardProps) => {
             src={match.championship.logo} 
             alt={match.championship.name} 
             className="w-6 h-6 object-contain" 
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder.svg";
+            }}
           />
           <span className="text-xs font-medium">{match.championship.name}</span>
         </div>
@@ -34,6 +38,10 @@ export const MatchCard = ({ match }: MatchCardProps) => {
               src={match.homeTeam.logo} 
               alt={match.homeTeam.name} 
               className="w-16 h-16 object-contain" 
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/placeholder.svg";
+              }}
             />
             <p className="text-sm font-medium text-center">{match.homeTeam.name}</p>
           </div>
@@ -50,6 +58,10 @@ export const MatchCard = ({ match }: MatchCardProps) => {
               src={match.awayTeam.logo} 
               alt={match.awayTeam.name} 
               className="w-16 h-16 object-contain" 
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/placeholder.svg";
+              }}
             />
             <p className="text-sm font-medium text-center">{match.awayTeam.name}</p>
           </div>

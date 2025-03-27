@@ -60,6 +60,10 @@ const MatchDetail = () => {
                       src={match.championship.logo} 
                       alt={match.championship.name} 
                       className="w-10 h-10 object-contain" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
                     />
                     <div>
                       <h1 className="text-xl font-bold">{match.homeTeam.name} vs {match.awayTeam.name}</h1>
@@ -79,6 +83,10 @@ const MatchDetail = () => {
                       src={match.homeTeam.logo} 
                       alt={match.homeTeam.name} 
                       className="w-24 h-24 object-contain" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
                     />
                     <h2 className="text-lg font-semibold">{match.homeTeam.name}</h2>
                   </div>
@@ -90,6 +98,10 @@ const MatchDetail = () => {
                       src={match.awayTeam.logo} 
                       alt={match.awayTeam.name} 
                       className="w-24 h-24 object-contain" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
                     />
                     <h2 className="text-lg font-semibold">{match.awayTeam.name}</h2>
                   </div>
