@@ -11,14 +11,14 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{
     error: Error | null;
-    data: Session | null;
+    data: { session: Session | null; user: User | null } | null;
   }>;
   signUp: (email: string, password: string, userData: {
     full_name?: string;
     username?: string;
   }) => Promise<{
     error: Error | null;
-    data: Session | null;
+    data: { session: Session | null; user: User | null } | null;
   }>;
   signOut: () => Promise<void>;
 }
@@ -79,9 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
-    const result = await supabase.auth.signInWithPassword({ email, password });
+    const response = await supabase.auth.signInWithPassword({ email, password });
     setIsLoading(false);
-    return result;
+    return {
+      error: response.error,
+      data: response.data ? { 
+        session: response.data.session, 
+        user: response.data.user 
+      } : null
+    };
   };
 
   const signUp = async (
@@ -90,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userData: { full_name?: string; username?: string; }
   ) => {
     setIsLoading(true);
-    const result = await supabase.auth.signUp({
+    const response = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -98,7 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
     setIsLoading(false);
-    return result;
+    return {
+      error: response.error,
+      data: response.data ? { 
+        session: response.data.session, 
+        user: response.data.user 
+      } : null
+    };
   };
 
   const signOut = async () => {
