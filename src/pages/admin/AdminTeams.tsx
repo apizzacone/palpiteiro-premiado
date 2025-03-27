@@ -70,7 +70,16 @@ const AdminTeams = () => {
       if (error) throw error;
       
       console.log('Teams data:', data);
-      setAllTeams(data || []);
+      
+      // Transform data to match Team type if needed
+      const teamsData: Team[] = data?.map(team => ({
+        id: team.id,
+        name: team.name,
+        country: team.country,
+        logo: team.logo || "/placeholder.svg"
+      })) || [];
+      
+      setAllTeams(teamsData);
     } catch (error) {
       console.error('Error fetching teams:', error);
       toast({
@@ -110,7 +119,7 @@ const AdminTeams = () => {
           .update({
             name: newTeam.name,
             country: newTeam.country,
-            logo: newTeam.logo
+            logo: newTeam.logo || "/placeholder.svg"
           })
           .eq('id', newTeam.id);
           
@@ -142,9 +151,6 @@ const AdminTeams = () => {
       setNewTeam({ name: "", country: "", logo: "/placeholder.svg" });
       setIsEditing(false);
       setOpenDialog(false);
-      
-      // Fetch updated teams list
-      fetchTeams();
     } catch (error) {
       console.error('Error saving team:', error);
       toast({
@@ -176,9 +182,6 @@ const AdminTeams = () => {
         title: "Time removido",
         description: "O time foi removido com sucesso!"
       });
-      
-      // Update local state
-      setAllTeams(prev => prev.filter(team => team.id !== id));
     } catch (error) {
       console.error('Error deleting team:', error);
       toast({

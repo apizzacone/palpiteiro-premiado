@@ -1,12 +1,45 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import TeamCard from "@/components/TeamCard";
-import { teams } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
+import { Team } from "@/types";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Teams = () => {
   const [filter, setFilter] = useState("");
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('name');
+          
+        if (error) throw error;
+        
+        const teamsData: Team[] = data?.map(team => ({
+          id: team.id,
+          name: team.name,
+          country: team.country,
+          logo: team.logo || "/placeholder.svg"
+        })) || [];
+        
+        setTeams(teamsData);
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTeams();
+  }, []);
   
   const filteredTeams = teams.filter(team =>
     team.name.toLowerCase().includes(filter.toLowerCase())
@@ -32,7 +65,12 @@ const Teams = () => {
             />
           </div>
           
-          {filteredTeams.length > 0 ? (
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Carregando times...</span>
+            </div>
+          ) : filteredTeams.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {filteredTeams.map(team => (
                 <TeamCard key={team.id} team={team} />
