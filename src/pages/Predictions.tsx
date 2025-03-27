@@ -1,4 +1,3 @@
-
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import MatchesLoading from "@/components/match/MatchesLoading";
+import MatchesEmpty from "@/components/match/MatchesEmpty";
 
 const Predictions = () => {
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ const Predictions = () => {
       try {
         setLoading(true);
         
-        // Fetch matches
+        // Fetch matches that are scheduled
         const { data: matchesData, error } = await supabase
           .from('matches')
           .select(`
@@ -48,11 +49,14 @@ const Predictions = () => {
         
         if (error) throw error;
         
-        if (matchesData) {
-          // Fetch teams data
+        if (matchesData && matchesData.length > 0) {
+          // Extract unique team IDs and championship IDs
           const teamIds = matchesData.flatMap(match => [match.home_team_id, match.away_team_id]);
           const uniqueTeamIds = [...new Set(teamIds)];
           
+          const championshipIds = [...new Set(matchesData.map(match => match.championship_id))];
+          
+          // Fetch teams data
           const { data: teamsData, error: teamsError } = await supabase
             .from('teams')
             .select('*')
@@ -61,8 +65,6 @@ const Predictions = () => {
           if (teamsError) throw teamsError;
           
           // Fetch championships data
-          const championshipIds = [...new Set(matchesData.map(match => match.championship_id))];
-          
           const { data: championshipsData, error: championshipsError } = await supabase
             .from('championships')
             .select('*')
@@ -92,16 +94,16 @@ const Predictions = () => {
             });
           });
           
-          // Transform raw data into Match objects with proper type casting for status
+          // Transform raw data into Match objects
           const formattedMatches = matchesData.map(match => {
             const homeTeam = teamsMap.get(match.home_team_id);
             const awayTeam = teamsMap.get(match.away_team_id);
             const championship = championshipsMap.get(match.championship_id);
             
-            // Ensure status is one of the allowed values in our type
+            // Make sure status is one of the allowed values in our Match type
             const status = match.status === "scheduled" || match.status === "live" || match.status === "finished" 
-              ? match.status as "scheduled" | "live" | "finished"
-              : "scheduled"; // Default to scheduled if unknown status
+              ? (match.status as "scheduled" | "live" | "finished")
+              : "scheduled" as const; // Type assertion to match the union type
             
             return {
               id: match.id,
@@ -114,10 +116,12 @@ const Predictions = () => {
               awayScore: match.away_score,
               predictionCost: match.prediction_cost,
               prize: match.prize
-            };
+            } as Match;
           });
           
           setMatches(formattedMatches);
+        } else {
+          setMatches([]);
         }
       } catch (error) {
         console.error("Error fetching matches:", error);
@@ -188,10 +192,7 @@ const Predictions = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center items-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-              <span>Carregando partidas...</span>
-            </div>
+            <MatchesLoading />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1">
@@ -256,16 +257,7 @@ const Predictions = () => {
                       </Card>
                     ))
                   ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">Nenhuma partida disponível no momento</p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4"
-                        onClick={() => navigate("/matches")}
-                      >
-                        Ver todas as partidas
-                      </Button>
-                    </div>
+                    <MatchesEmpty />
                   )}
                 </div>
               </div>

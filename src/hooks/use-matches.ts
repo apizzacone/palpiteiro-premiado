@@ -66,7 +66,7 @@ export const useMatches = () => {
             championshipsMap.set(championship.id, championship);
           });
           
-          // Fetch matches
+          // Fetch matches with proper ID handling
           const { data: matchesData, error } = await supabase
             .from('matches')
             .select(`
@@ -87,65 +87,72 @@ export const useMatches = () => {
           
           if (matchesData) {
             // We need to fetch teams data to construct complete match objects
-            const teamIds = matchesData.flatMap(match => [match.home_team_id, match.away_team_id]);
+            const teamIds = matchesData.flatMap(match => [match.home_team_id, match.away_team_id])
+              .filter(id => id !== null && id !== undefined);
+            
             const uniqueTeamIds = [...new Set(teamIds)];
             
-            const { data: teamsData, error: teamsError } = await supabase
-              .from('teams')
-              .select('*')
-              .in('id', uniqueTeamIds);
+            if (uniqueTeamIds.length > 0) {
+              const { data: teamsData, error: teamsError } = await supabase
+                .from('teams')
+                .select('*')
+                .in('id', uniqueTeamIds);
+                
+              if (teamsError) throw teamsError;
               
-            if (teamsError) throw teamsError;
-            
-            // Create a map of team IDs to team objects
-            const teamsMap = new Map<string, Team>();
-            teamsData?.forEach(team => {
-              teamsMap.set(team.id, {
-                id: team.id,
-                name: team.name,
-                logo: team.logo || "/placeholder.svg",
-                country: team.country
+              // Create a map of team IDs to team objects
+              const teamsMap = new Map<string, Team>();
+              teamsData?.forEach(team => {
+                teamsMap.set(team.id, {
+                  id: team.id,
+                  name: team.name,
+                  logo: team.logo || "/placeholder.svg",
+                  country: team.country
+                });
               });
-            });
-            
-            // Transform raw data into Match objects
-            const formattedMatches: Match[] = matchesData.map(match => {
-              const homeTeam = teamsMap.get(match.home_team_id) as Team;
-              const awayTeam = teamsMap.get(match.away_team_id) as Team;
               
-              // Find championship from our map or use a default
-              const championship = championshipsMap.get(match.championship_id) || {
-                id: match.championship_id,
-                name: "Campeonato",
-                logo: "/placeholder.svg",
-                country: "Brasil",
-                teams: []
-              };
+              // Transform raw data into Match objects
+              const formattedMatches: Match[] = matchesData.map(match => {
+                const homeTeam = teamsMap.get(match.home_team_id) as Team;
+                const awayTeam = teamsMap.get(match.away_team_id) as Team;
+                
+                // Find championship from our map or use a default
+                const championship = championshipsMap.get(match.championship_id) || {
+                  id: match.championship_id,
+                  name: "Campeonato",
+                  logo: "/placeholder.svg",
+                  country: "Brasil",
+                  teams: []
+                };
+                
+                // Ensure status is one of the allowed values
+                const status = match.status === "scheduled" || match.status === "live" || match.status === "finished" 
+                  ? match.status as "scheduled" | "live" | "finished"
+                  : "scheduled";
+                
+                return {
+                  id: match.id,
+                  homeTeam,
+                  awayTeam,
+                  championship,
+                  date: new Date(match.date),
+                  status,
+                  homeScore: match.home_score,
+                  awayScore: match.away_score,
+                  predictionCost: match.prediction_cost,
+                  prize: match.prize
+                };
+              });
               
-              // Ensure status is one of the allowed values
-              const status = match.status === "scheduled" || match.status === "live" || match.status === "finished" 
-                ? match.status as "scheduled" | "live" | "finished"
-                : "scheduled";
-              
-              return {
-                id: match.id,
-                homeTeam,
-                awayTeam,
-                championship,
-                date: new Date(match.date),
-                status,
-                homeScore: match.home_score,
-                awayScore: match.away_score,
-                predictionCost: match.prediction_cost,
-                prize: match.prize
-              };
-            });
-            
-            setMatches(formattedMatches);
+              setMatches(formattedMatches);
+            } else {
+              setMatches([]);
+            }
           }
         }
       } catch (error) {
         console.error("Error fetching matches:", error);
+        setMatches([]);
       } finally {
         setLoading(false);
       }
@@ -154,6 +161,7 @@ export const useMatches = () => {
     fetchData();
   }, []);
   
+  // Filter matches based on search and championship filter
   const filteredMatches = matches.filter(match => {
     const matchesSearch = match.homeTeam.name.toLowerCase().includes(filter.toLowerCase()) || 
                          match.awayTeam.name.toLowerCase().includes(filter.toLowerCase());
