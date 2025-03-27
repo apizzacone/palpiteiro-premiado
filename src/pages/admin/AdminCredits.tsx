@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,23 +26,16 @@ interface Transaction {
   updated_at: string;
   approved_at: string | null;
   approved_by: string | null;
-}
-
-interface Profile {
-  full_name: string | null;
-  username: string | null;
-  email?: string;
-}
-
-interface TransactionWithUser extends Transaction {
-  profiles: Profile;
+  user_email?: string;
+  user_full_name?: string | null;
+  user_username?: string | null;
 }
 
 const AdminCredits = () => {
   const { toast } = useToast();
-  const [transactions, setTransactions] = useState<TransactionWithUser[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithUser | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
@@ -54,23 +48,52 @@ const AdminCredits = () => {
     setLoading(true);
     
     try {
-      const { data, error } = await supabase
+      // First, fetch all transactions
+      const { data: transactionsData, error: transactionsError } = await supabase
         .from('credit_transactions')
-        .select(`
-          *,
-          profiles(full_name, username, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error("Supabase query error:", error);
-        throw error;
+      if (transactionsError) {
+        console.error("Supabase query error:", transactionsError);
+        throw transactionsError;
       }
       
-      console.log("Fetched transactions data:", data);
+      if (!transactionsData || transactionsData.length === 0) {
+        setTransactions([]);
+        return;
+      }
       
-      const typedData = data as unknown as TransactionWithUser[];
-      setTransactions(typedData);
+      // Then, fetch user information for each transaction
+      const transactionsWithUserInfo = await Promise.all(
+        transactionsData.map(async (transaction) => {
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('full_name, username, email')
+            .eq('id', transaction.user_id)
+            .single();
+          
+          if (userError) {
+            console.warn(`Could not fetch user info for transaction ${transaction.id}:`, userError);
+            return {
+              ...transaction,
+              user_full_name: null,
+              user_username: null,
+              user_email: null
+            };
+          }
+          
+          return {
+            ...transaction,
+            user_full_name: userData?.full_name,
+            user_username: userData?.username,
+            user_email: userData?.email
+          };
+        })
+      );
+      
+      console.log("Transactions with user info:", transactionsWithUserInfo);
+      setTransactions(transactionsWithUserInfo);
     } catch (error) {
       console.error("Error fetching transactions:", error);
       toast({
@@ -160,17 +183,17 @@ const AdminCredits = () => {
     }
   };
   
-  const openApproveDialog = (transaction: TransactionWithUser) => {
+  const openApproveDialog = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsApproveDialogOpen(true);
   };
   
-  const openRejectDialog = (transaction: TransactionWithUser) => {
+  const openRejectDialog = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsRejectDialogOpen(true);
   };
   
-  const openReceiptDialog = (transaction: TransactionWithUser) => {
+  const openReceiptDialog = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsReceiptDialogOpen(true);
   };
@@ -256,7 +279,7 @@ const AdminCredits = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-muted-foreground">Usuário</Label>
-                    <div className="font-medium">{selectedTransaction.profiles.full_name || selectedTransaction.profiles.username}</div>
+                    <div className="font-medium">{selectedTransaction.user_full_name || selectedTransaction.user_username || 'Usuário'}</div>
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Valor</Label>
@@ -300,7 +323,7 @@ const AdminCredits = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-muted-foreground">Usuário</Label>
-                    <div className="font-medium">{selectedTransaction.profiles.full_name || selectedTransaction.profiles.username}</div>
+                    <div className="font-medium">{selectedTransaction.user_full_name || selectedTransaction.user_username || 'Usuário'}</div>
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Valor</Label>
@@ -411,7 +434,7 @@ const TransactionsTable = ({
         {transactions.map((transaction) => (
           <TableRow key={transaction.id}>
             <TableCell>{format(new Date(transaction.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
-            <TableCell>{transaction.profiles.full_name || transaction.profiles.username || 'Usuário'}</TableCell>
+            <TableCell>{transaction.user_full_name || transaction.user_username || 'Usuário'}</TableCell>
             <TableCell>{transaction.amount}</TableCell>
             <TableCell>R$ {transaction.price.toFixed(2)}</TableCell>
             <TableCell>{transaction.payment_method === 'pix' ? 'PIX' : transaction.payment_method}</TableCell>
