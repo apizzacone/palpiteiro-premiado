@@ -1,5 +1,6 @@
+
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { 
   Trophy, 
   Users, 
@@ -49,42 +50,42 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href="/admin">
+                  <Link to="/admin">
                     <LayoutDashboard />
                     <span>Dashboard</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href="/admin/teams">
+                  <Link to="/admin/teams">
                     <Users />
                     <span>Times</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href="/admin/championships">
+                  <Link to="/admin/championships">
                     <Trophy />
                     <span>Campeonatos</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href="/admin/matches">
+                  <Link to="/admin/matches">
                     <Calendar />
                     <span>Partidas</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href="/admin/credits">
+                  <Link to="/admin/credits">
                     <CreditCard />
                     <span>Créditos</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
