@@ -6,10 +6,9 @@ import TeamCard from "@/components/TeamCard";
 import ChampionshipCard from "@/components/ChampionshipCard";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
-import { championships } from "@/lib/mock-data";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Team, Match } from "@/types";
+import { Team, Match, Championship } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
@@ -17,14 +16,65 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [featuredTeams, setFeaturedTeams] = useState<Team[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
-  
-  // Only show first 3 championships for the homepage
-  const featuredChampionships = championships.slice(0, 3);
+  const [featuredChampionships, setFeaturedChampionships] = useState<Championship[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Fetch championships first to have them available for matches
+        const { data: championshipsData, error: championshipsError } = await supabase
+          .from('championships')
+          .select('*')
+          .order('name')
+          .limit(3);
+          
+        if (championshipsError) throw championshipsError;
+        
+        // Create a map for quick championship lookup
+        const championshipsMap = new Map<string, Championship>();
+        
+        if (championshipsData) {
+          // Transform championships data into Championship objects
+          const formattedChampionships: Championship[] = await Promise.all(
+            championshipsData.map(async (championship) => {
+              // Fetch teams for this championship
+              const { data: teamData } = await supabase
+                .from('championship_teams')
+                .select(`
+                  team_id,
+                  teams:team_id (
+                    id,
+                    name,
+                    country,
+                    logo
+                  )
+                `)
+                .eq('championship_id', championship.id);
+              
+              const teams = teamData?.map(item => ({
+                id: item.teams.id,
+                name: item.teams.name,
+                country: item.teams.country,
+                logo: item.teams.logo || "/placeholder.svg"
+              })) || [];
+              
+              const championshipObj = {
+                id: championship.id,
+                name: championship.name,
+                country: championship.country,
+                logo: championship.logo || "/placeholder.svg",
+                teams: teams
+              };
+              
+              championshipsMap.set(championship.id, championshipObj);
+              return championshipObj;
+            })
+          );
+          
+          setFeaturedChampionships(formattedChampionships);
+        }
         
         // Fetch teams
         const { data: teamsData, error: teamsError } = await supabase
@@ -99,8 +149,8 @@ const Index = () => {
             const homeTeam = teamsMap.get(match.home_team_id) as Team;
             const awayTeam = teamsMap.get(match.away_team_id) as Team;
             
-            // Find championship from mock data for now
-            const championship = championships.find(c => c.id === match.championship_id) || {
+            // Find championship from our map or create a default one
+            const championship = championshipsMap.get(match.championship_id) || {
               id: match.championship_id,
               name: "Campeonato",
               logo: "/placeholder.svg",
@@ -108,13 +158,18 @@ const Index = () => {
               teams: []
             };
             
+            // Ensure status is one of the allowed values
+            const status = match.status === "scheduled" || match.status === "live" || match.status === "finished" 
+              ? match.status as "scheduled" | "live" | "finished"
+              : "scheduled";
+            
             return {
               id: match.id,
               homeTeam,
               awayTeam,
               championship,
               date: new Date(match.date),
-              status: match.status as 'scheduled' | 'live' | 'finished',
+              status,
               homeScore: match.home_score,
               awayScore: match.away_score,
               predictionCost: match.prediction_cost,
@@ -128,6 +183,7 @@ const Index = () => {
         console.error('Error fetching data:', error);
         setFeaturedTeams([]);
         setUpcomingMatches([]);
+        setFeaturedChampionships([]);
       } finally {
         setLoading(false);
       }
@@ -208,11 +264,24 @@ const Index = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {featuredChampionships.map(championship => (
-              <ChampionshipCard key={championship.id} championship={championship} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+              <span>Carregando campeonatos...</span>
+            </div>
+          ) : featuredChampionships.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {featuredChampionships.map(championship => (
+                <ChampionshipCard key={championship.id} championship={championship} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                Nenhum campeonato disponível no momento. Adicione campeonatos no painel administrativo.
+              </p>
+            </div>
+          )}
         </div>
       </section>
       
