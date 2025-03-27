@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -13,14 +12,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import UserCredit from "./UserCredit";
 
 export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAuthenticated } = useAuth();
 
-  // Track scroll position for navbar styling
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 10) {
@@ -92,6 +91,7 @@ export const Navbar = () => {
                   <span className="text-muted-foreground mr-1">Créditos:</span>
                   <span>{profile?.credits || 0}</span>
                 </div>
+                <UserCredit />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer scale-hover">

@@ -16,7 +16,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTeams from "./pages/admin/AdminTeams";
 import AdminChampionships from "./pages/admin/AdminChampionships";
 import AdminMatches from "./pages/admin/AdminMatches";
+import AdminCredits from "./pages/admin/AdminCredits";
 import AuthPage from "./pages/auth/AuthPage";
+import BuyCredits from "./pages/user/BuyCredits";
 
 const queryClient = new QueryClient();
 
@@ -39,11 +41,15 @@ const App = () => (
             <Route path="/championships" element={<Championships />} />
             <Route path="/championships/:id" element={<ChampionshipDetail />} />
             
+            {/* Rotas de Usuário */}
+            <Route path="/user/buy-credits" element={<BuyCredits />} />
+            
             {/* Rotas Admin */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/teams" element={<AdminTeams />} />
             <Route path="/admin/championships" element={<AdminChampionships />} />
             <Route path="/admin/matches" element={<AdminMatches />} />
+            <Route path="/admin/credits" element={<AdminCredits />} />
             
             {/* Rota 404 */}
             <Route path="*" element={<NotFound />} />

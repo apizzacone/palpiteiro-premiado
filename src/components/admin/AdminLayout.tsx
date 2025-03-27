@@ -1,4 +1,3 @@
-
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { 
@@ -6,7 +5,8 @@ import {
   Users, 
   Calendar, 
   LayoutDashboard,
-  Shield
+  Shield,
+  CreditCard
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
@@ -76,6 +76,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   <a href="/admin/matches">
                     <Calendar />
                     <span>Partidas</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/admin/credits">
+                    <CreditCard />
+                    <span>Créditos</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
