@@ -12,6 +12,7 @@ import MatchDetail from "./pages/MatchDetail";
 import Teams from "./pages/Teams";
 import Championships from "./pages/Championships";
 import ChampionshipDetail from "./pages/ChampionshipDetail";
+import Predictions from "./pages/Predictions";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTeams from "./pages/admin/AdminTeams";
 import AdminChampionships from "./pages/admin/AdminChampionships";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/teams" element={<Teams />} />
             <Route path="/championships" element={<Championships />} />
             <Route path="/championships/:id" element={<ChampionshipDetail />} />
+            <Route path="/predictions" element={<Predictions />} />
             
             {/* Rotas de Usuário */}
             <Route path="/user/buy-credits" element={<BuyCredits />} />

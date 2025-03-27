@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,21 +13,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, User, LogOut, Settings, CreditCard } from "lucide-react";
 import UserCredit from "./UserCredit";
+import Navigation from "./Navigation";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   
-  // Change this line to check if user exists instead of isAuthenticated
   const isAuthenticated = !!user;
 
   return (
     <div className="bg-background border-b">
       <div className="container flex items-center justify-between h-16">
-        <Link to="/" className="font-bold text-xl">
-          Palpiteiro
-        </Link>
+        <div className="flex items-center space-x-6">
+          <Link to="/" className="font-bold text-xl">
+            Palpiteiro
+          </Link>
+          <Navigation />
+        </div>
 
         <div className="hidden md:flex items-center space-x-4">
           {isAuthenticated ? (
@@ -47,6 +49,10 @@ const Navbar = () => {
                   <DropdownMenuItem onClick={() => navigate("/user/profile")}>
                     <User className="h-4 w-4 mr-2" />
                     <span>Perfil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/predictions")}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    <span>Palpites</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/user/settings")}>
                     <Settings className="h-4 w-4 mr-2" />
@@ -81,6 +87,42 @@ const Navbar = () => {
           </SheetTrigger>
           <SheetContent side="right" className="sm:max-w-sm">
             <div className="grid gap-4 py-4">
+              <Link 
+                to="/" 
+                className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent"
+                onClick={() => setIsOpen(false)}
+              >
+                Início
+              </Link>
+              <Link 
+                to="/matches" 
+                className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent"
+                onClick={() => setIsOpen(false)}
+              >
+                Partidas
+              </Link>
+              <Link 
+                to="/predictions" 
+                className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent"
+                onClick={() => setIsOpen(false)}
+              >
+                Palpites
+              </Link>
+              <Link 
+                to="/championships" 
+                className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent"
+                onClick={() => setIsOpen(false)}
+              >
+                Campeonatos
+              </Link>
+              <Link 
+                to="/teams" 
+                className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent"
+                onClick={() => setIsOpen(false)}
+              >
+                Times
+              </Link>
+
               {isAuthenticated ? (
                 <>
                   <div className="text-sm">
@@ -92,6 +134,13 @@ const Navbar = () => {
                   }}>
                     <User className="h-4 w-4 mr-2" />
                     Perfil
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    navigate("/predictions");
+                    setIsOpen(false);
+                  }}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Palpites
                   </Button>
                   <Button variant="outline" onClick={() => {
                     navigate("/user/settings");
