@@ -51,7 +51,7 @@ const Matches = () => {
                     <SelectValue placeholder="Filtrar por campeonato" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os campeonatos</SelectItem>
+                    <SelectItem value="all">Todos os campeonatos</SelectItem>
                     {championships.map(championship => (
                       <SelectItem key={championship.id} value={championship.id}>
                         {championship.name}
