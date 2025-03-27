@@ -19,6 +19,9 @@ import AdminMatches from "./pages/admin/AdminMatches";
 import AdminCredits from "./pages/admin/AdminCredits";
 import AuthPage from "./pages/auth/AuthPage";
 import BuyCredits from "./pages/user/BuyCredits";
+import Profile from "./pages/user/Profile";
+import Settings from "./pages/user/Settings";
+import Transactions from "./pages/user/Transactions";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +46,9 @@ const App = () => (
             
             {/* Rotas de Usuário */}
             <Route path="/user/buy-credits" element={<BuyCredits />} />
+            <Route path="/user/profile" element={<Profile />} />
+            <Route path="/user/settings" element={<Settings />} />
+            <Route path="/user/transactions" element={<Transactions />} />
             
             {/* Rotas Admin */}
             <Route path="/admin" element={<AdminDashboard />} />

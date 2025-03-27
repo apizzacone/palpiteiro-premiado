@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, LogOut, Settings, LucideIcon } from "lucide-react";
+import { Menu, User, LogOut, Settings, CreditCard } from "lucide-react";
 import UserCredit from "./UserCredit";
 
 const Navbar = () => {
@@ -44,21 +44,23 @@ const Navbar = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuItem onClick={() => navigate("/profile")}>
-                      <User className="h-4 w-4 mr-2" />
-                      <span>Perfil</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/settings")}>
-                      <Settings className="h-4 w-4 mr-2" />
-                      <span>Configurações</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>
-                      <LogOut className="h-4 w-4 mr-2" />
-                      <span>Sair</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => navigate("/user/profile")}>
+                    <User className="h-4 w-4 mr-2" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/user/settings")}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    <span>Configurações</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/user/buy-credits")}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    <span>Comprar créditos</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => signOut()}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -84,13 +86,26 @@ const Navbar = () => {
                   <div className="text-sm">
                     Logado como {user?.email}
                   </div>
-                  <Button variant="outline" onClick={() => navigate("/profile")}>
+                  <Button variant="outline" onClick={() => {
+                    navigate("/user/profile");
+                    setIsOpen(false);
+                  }}>
                     <User className="h-4 w-4 mr-2" />
                     Perfil
                   </Button>
-                  <Button variant="outline" onClick={() => navigate("/settings")}>
+                  <Button variant="outline" onClick={() => {
+                    navigate("/user/settings");
+                    setIsOpen(false);
+                  }}>
                     <Settings className="h-4 w-4 mr-2" />
                     Configurações
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    navigate("/user/buy-credits");
+                    setIsOpen(false);
+                  }}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Comprar créditos
                   </Button>
                   <Button variant="destructive" onClick={() => signOut()}>
                     <LogOut className="h-4 w-4 mr-2" />
