@@ -84,6 +84,12 @@ const MatchDetail = () => {
           
         if (championshipError) throw championshipError;
         
+        // Ensure status is one of the allowed values
+        let validStatus: "scheduled" | "live" | "finished" = "scheduled";
+        if (matchData.status === "live" || matchData.status === "finished") {
+          validStatus = matchData.status;
+        }
+        
         // Construct match object
         const formattedMatch: Match = {
           id: matchData.id,
@@ -107,7 +113,7 @@ const MatchDetail = () => {
             teams: []
           },
           date: new Date(matchData.date),
-          status: matchData.status,
+          status: validStatus,
           homeScore: matchData.home_score,
           awayScore: matchData.away_score,
           predictionCost: matchData.prediction_cost,
