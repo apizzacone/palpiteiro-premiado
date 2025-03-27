@@ -1,12 +1,76 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ChampionshipCard from "@/components/ChampionshipCard";
-import { championships } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
+import { Championship } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const Championships = () => {
   const [filter, setFilter] = useState("");
+  const [championships, setChampionships] = useState<Championship[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchChampionships = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch championships from database
+        const { data: championshipsData, error } = await supabase
+          .from('championships')
+          .select('*')
+          .order('name');
+          
+        if (error) throw error;
+        
+        if (championshipsData) {
+          // Transform raw data into Championship objects
+          const formattedChampionships: Championship[] = await Promise.all(
+            championshipsData.map(async (championship) => {
+              // Fetch teams for this championship
+              const { data: teamData } = await supabase
+                .from('championship_teams')
+                .select(`
+                  team_id,
+                  teams:team_id (
+                    id,
+                    name,
+                    country,
+                    logo
+                  )
+                `)
+                .eq('championship_id', championship.id);
+              
+              const teams = teamData?.map(item => ({
+                id: item.teams.id,
+                name: item.teams.name,
+                country: item.teams.country,
+                logo: item.teams.logo || "/placeholder.svg"
+              })) || [];
+              
+              return {
+                id: championship.id,
+                name: championship.name,
+                country: championship.country,
+                logo: championship.logo || "/placeholder.svg",
+                teams: teams
+              };
+            })
+          );
+          
+          setChampionships(formattedChampionships);
+        }
+      } catch (error) {
+        console.error('Error fetching championships:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchChampionships();
+  }, []);
   
   const filteredChampionships = championships.filter(championship =>
     championship.name.toLowerCase().includes(filter.toLowerCase())
@@ -32,7 +96,12 @@ const Championships = () => {
             />
           </div>
           
-          {filteredChampionships.length > 0 ? (
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+              <span>Carregando campeonatos...</span>
+            </div>
+          ) : filteredChampionships.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {filteredChampionships.map(championship => (
                 <ChampionshipCard key={championship.id} championship={championship} />

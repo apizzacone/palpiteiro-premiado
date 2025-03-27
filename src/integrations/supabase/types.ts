@@ -9,6 +9,63 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      championship_teams: {
+        Row: {
+          championship_id: string
+          team_id: string
+        }
+        Insert: {
+          championship_id: string
+          team_id: string
+        }
+        Update: {
+          championship_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "championship_teams_championship_id_fkey"
+            columns: ["championship_id"]
+            isOneToOne: false
+            referencedRelation: "championships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "championship_teams_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      championships: {
+        Row: {
+          country: string
+          created_at: string
+          id: string
+          logo: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          id?: string
+          logo?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          id?: string
+          logo?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       credit_transactions: {
         Row: {
           amount: number

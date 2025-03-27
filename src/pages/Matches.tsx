@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import MatchCard from "@/components/MatchCard";
-import { championships } from "@/lib/mock-data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Match, Team, Championship } from "@/types";
@@ -13,13 +12,33 @@ const Matches = () => {
   const [filter, setFilter] = useState("");
   const [championshipFilter, setChampionshipFilter] = useState("all");
   const [matches, setMatches] = useState<Match[]>([]);
+  const [championships, setChampionships] = useState<Championship[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    const fetchMatches = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         
+        // Fetch championships first
+        const { data: championshipsData, error: championshipsError } = await supabase
+          .from('championships')
+          .select('*')
+          .order('name');
+          
+        if (championshipsError) throw championshipsError;
+        
+        if (championshipsData) {
+          setChampionships(championshipsData.map(championship => ({
+            id: championship.id,
+            name: championship.name,
+            logo: championship.logo || "/placeholder.svg",
+            country: championship.country,
+            teams: []
+          })));
+        }
+        
+        // Fetch matches
         const { data: matchesData, error } = await supabase
           .from('matches')
           .select(`
@@ -33,7 +52,8 @@ const Matches = () => {
             championship_id,
             home_team_id,
             away_team_id
-          `);
+          `)
+          .order('date');
         
         if (error) throw error;
         
@@ -60,13 +80,25 @@ const Matches = () => {
             });
           });
           
+          // Create a map of championship IDs to championship objects
+          const championshipsMap = new Map<string, Championship>();
+          championshipsData?.forEach(championship => {
+            championshipsMap.set(championship.id, {
+              id: championship.id,
+              name: championship.name,
+              logo: championship.logo || "/placeholder.svg",
+              country: championship.country,
+              teams: []
+            });
+          });
+          
           // Transform raw data into Match objects
           const formattedMatches: Match[] = matchesData.map(match => {
             const homeTeam = teamsMap.get(match.home_team_id) as Team;
             const awayTeam = teamsMap.get(match.away_team_id) as Team;
             
-            // Find championship from mock data for now
-            const championship = championships.find(c => c.id === match.championship_id) || {
+            // Find championship from our map
+            const championship = championshipsMap.get(match.championship_id) || {
               id: match.championship_id,
               name: "Campeonato",
               logo: "/placeholder.svg",
@@ -97,7 +129,7 @@ const Matches = () => {
       }
     };
     
-    fetchMatches();
+    fetchData();
   }, []);
   
   const filteredMatches = matches.filter(match => {
