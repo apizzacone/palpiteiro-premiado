@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Shield
 } from "lucide-react";
-import { currentUser } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   Sidebar, 
   SidebarContent, 
@@ -24,15 +24,14 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-// In a real application, this would be handled by a proper auth system
-// For now, we'll use a simple check if the user is an admin
-const isAdmin = () => {
-  return currentUser && currentUser.id === "1"; // Assuming user 1 is admin
-};
-
 const AdminLayout = ({ children }: AdminLayoutProps) => {
-  // Redirect to home if not admin
-  if (!isAdmin()) {
+  const { profile, user } = useAuth();
+  
+  // Verificar se o usuário é admin
+  const isAdmin = profile?.is_admin === true;
+
+  // Redirecionar para a página inicial se não for admin
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -43,7 +42,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <SidebarHeader>
             <div className="flex items-center gap-2 px-2">
               <Shield className="h-6 w-6 text-primary" />
-              <div className="font-semibold text-lg">Admin Panel</div>
+              <div className="font-semibold text-lg">Painel Admin</div>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -89,12 +88,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <h1 className="text-2xl font-bold">Painel Administrativo</h1>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
-                {currentUser?.name}
+                {profile?.full_name || profile?.username || user?.email}
               </span>
               <Avatar>
-                <AvatarImage src="/placeholder.svg" alt={currentUser?.name} />
+                <AvatarImage src={profile?.avatar_url || ""} alt={profile?.full_name || ""} />
                 <AvatarFallback>
-                  {currentUser?.name.substring(0, 2).toUpperCase()}
+                  {profile?.full_name 
+                    ? profile.full_name.substring(0, 2).toUpperCase() 
+                    : user?.email?.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </div>

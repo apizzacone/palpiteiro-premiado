@@ -1,18 +1,24 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User } from "@/types";
 import { cn } from "@/lib/utils";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
-interface NavbarProps {
-  user: User | null;
-}
-
-export const Navbar = ({ user }: NavbarProps) => {
+export const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, profile, signOut } = useAuth();
 
   // Track scroll position for navbar styling
   useEffect(() => {
@@ -27,6 +33,17 @@ export const Navbar = ({ user }: NavbarProps) => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Logout realizado com sucesso!");
+      navigate("/");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      toast.error("Erro ao fazer logout. Tente novamente.");
+    }
+  };
 
   const navItems = [
     { name: "Início", path: "/" },
@@ -73,22 +90,43 @@ export const Navbar = ({ user }: NavbarProps) => {
               <>
                 <div className="bg-secondary px-3 py-1.5 rounded-full text-sm font-medium">
                   <span className="text-muted-foreground mr-1">Créditos:</span>
-                  <span>{user.credits}</span>
+                  <span>{profile?.credits || 0}</span>
                 </div>
-                <Link to="/account">
-                  <Avatar className="scale-hover">
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                  </Avatar>
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="cursor-pointer scale-hover">
+                      <AvatarFallback>
+                        {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                      <AvatarImage src={profile?.avatar_url || ""} />
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <div className="px-2 py-1.5 text-sm">
+                      <div className="font-medium">{profile?.full_name || profile?.username || user.email}</div>
+                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/account">Minha conta</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/predictions">Meus palpites</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      Sair
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <>
                 <Button variant="outline" asChild>
-                  <Link to="/login">Entrar</Link>
+                  <Link to="/auth">Entrar</Link>
                 </Button>
                 <Button asChild>
-                  <Link to="/register">Cadastrar</Link>
+                  <Link to="/auth?tab=register">Cadastrar</Link>
                 </Button>
               </>
             )}
