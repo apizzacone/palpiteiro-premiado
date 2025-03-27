@@ -26,10 +26,10 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Conta</h4>
             <ul className="space-y-2">
-              <li><Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Entrar</Link></li>
-              <li><Link to="/register" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Cadastrar</Link></li>
-              <li><Link to="/account" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Minha Conta</Link></li>
-              <li><Link to="/credits" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Comprar Créditos</Link></li>
+              <li><Link to="/auth" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Entrar</Link></li>
+              <li><Link to="/auth?tab=register" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Cadastrar</Link></li>
+              <li><Link to="/profile" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Minha Conta</Link></li>
+              <li><Link to="/user/buy-credits" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Comprar Créditos</Link></li>
             </ul>
           </div>
           

@@ -86,7 +86,7 @@ const Index = () => {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button size="lg" asChild>
-              <Link to="/register">Criar conta</Link>
+              <Link to="/auth?tab=register">Criar conta</Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
               <Link to="/matches">Ver partidas</Link>

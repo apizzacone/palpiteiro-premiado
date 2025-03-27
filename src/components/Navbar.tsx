@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,8 +64,8 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => navigate("/auth/sign-in")}>Entrar</Button>
-              <Button onClick={() => navigate("/auth/sign-up")}>Cadastrar</Button>
+              <Button variant="outline" onClick={() => navigate("/auth")}>Entrar</Button>
+              <Button onClick={() => navigate("/auth?tab=register")}>Cadastrar</Button>
             </>
           )}
         </div>
@@ -98,8 +99,14 @@ const Navbar = () => {
                 </>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => navigate("/auth/sign-in")}>Entrar</Button>
-                  <Button onClick={() => navigate("/auth/sign-up")}>Cadastrar</Button>
+                  <Button variant="outline" onClick={() => {
+                    navigate("/auth");
+                    setIsOpen(false);
+                  }}>Entrar</Button>
+                  <Button onClick={() => {
+                    navigate("/auth?tab=register");
+                    setIsOpen(false);
+                  }}>Cadastrar</Button>
                 </>
               )}
             </div>
