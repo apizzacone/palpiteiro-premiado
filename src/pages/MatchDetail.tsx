@@ -24,6 +24,17 @@ const MatchDetail = () => {
     return <Navigate to="/matches" replace />;
   }
   
+  // Ensure we have a valid status
+  const validStatus = ["scheduled", "live", "finished"].includes(match.status) 
+    ? match.status as "scheduled" | "live" | "finished"
+    : "scheduled";
+    
+  // Create a new match object with the validated status
+  const validatedMatch = {
+    ...match,
+    status: validStatus
+  };
+  
   return (
     <Layout>
       <section className="py-12 md:py-20">
@@ -31,12 +42,12 @@ const MatchDetail = () => {
           <div className="max-w-4xl mx-auto">
             <div className="glass-card overflow-hidden animate-fade-up">
               <div className="bg-secondary p-6">
-                <MatchHeader match={match} />
+                <MatchHeader match={validatedMatch} />
               </div>
               
               <CardContent className="p-8">
-                <MatchInfo match={match} />
-                <MatchPredictionForm match={match} />
+                <MatchInfo match={validatedMatch} />
+                <MatchPredictionForm match={validatedMatch} />
               </CardContent>
             </div>
           </div>

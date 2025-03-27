@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Match } from "@/types";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,6 +12,13 @@ interface MatchCardProps {
 }
 
 export const MatchCard = ({ match }: MatchCardProps) => {
+  const navigate = useNavigate();
+  
+  const handleNavigateToMatch = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(`/matches/${match.id}`);
+  };
+  
   return (
     <Card className="overflow-hidden scale-hover">
       <CardHeader className="bg-secondary p-3 flex flex-row justify-between items-center">
@@ -48,17 +55,13 @@ export const MatchCard = ({ match }: MatchCardProps) => {
           
           <div className="flex flex-col items-center w-1/3">
             <div className="text-2xl font-semibold mb-1">VS</div>
-            <Link 
-              to={`/matches/${match.id}`}
-              className="w-full text-center"
+            <Button 
+              className="scale-hover w-full" 
+              size="sm"
+              onClick={handleNavigateToMatch}
             >
-              <Button 
-                className="scale-hover w-full" 
-                size="sm"
-              >
-                Palpitar
-              </Button>
-            </Link>
+              Palpitar
+            </Button>
           </div>
           
           <div className="flex flex-col items-center space-y-2 w-1/3">
