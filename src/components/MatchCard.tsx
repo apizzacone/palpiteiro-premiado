@@ -52,6 +52,9 @@ export const MatchCard = ({ match }: MatchCardProps) => {
               className="scale-hover" 
               size="sm"
               asChild
+              onClick={(e) => {
+                console.log("Button clicked, navigating to:", `/matches/${match.id}`);
+              }}
             >
               <Link to={`/matches/${match.id}`}>
                 Palpitar
