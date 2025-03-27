@@ -51,6 +51,66 @@ export type Database = {
         }
         Relationships: []
       }
+      matches: {
+        Row: {
+          away_score: number | null
+          away_team_id: string
+          championship_id: string
+          created_at: string
+          date: string
+          home_score: number | null
+          home_team_id: string
+          id: string
+          prediction_cost: number
+          prize: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          away_score?: number | null
+          away_team_id: string
+          championship_id: string
+          created_at?: string
+          date: string
+          home_score?: number | null
+          home_team_id: string
+          id?: string
+          prediction_cost?: number
+          prize: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          away_score?: number | null
+          away_team_id?: string
+          championship_id?: string
+          created_at?: string
+          date?: string
+          home_score?: number | null
+          home_team_id?: string
+          id?: string
+          prediction_cost?: number
+          prize?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_away_team_id_fkey"
+            columns: ["away_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_home_team_id_fkey"
+            columns: ["home_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

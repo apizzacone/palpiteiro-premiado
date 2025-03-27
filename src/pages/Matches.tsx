@@ -1,22 +1,112 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import MatchCard from "@/components/MatchCard";
-import { matches, championships } from "@/lib/mock-data";
+import { championships } from "@/lib/mock-data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Match, Team, Championship } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const Matches = () => {
   const [filter, setFilter] = useState("");
-  const [championshipFilter, setChampionshipFilter] = useState("");
+  const [championshipFilter, setChampionshipFilter] = useState("all");
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        setLoading(true);
+        
+        const { data: matchesData, error } = await supabase
+          .from('matches')
+          .select(`
+            id,
+            date,
+            prediction_cost,
+            prize,
+            status,
+            home_score,
+            away_score,
+            championship_id,
+            home_team_id,
+            away_team_id
+          `);
+        
+        if (error) throw error;
+        
+        if (matchesData) {
+          // We need to fetch teams data to construct complete match objects
+          const teamIds = matchesData.flatMap(match => [match.home_team_id, match.away_team_id]);
+          const uniqueTeamIds = [...new Set(teamIds)];
+          
+          const { data: teamsData, error: teamsError } = await supabase
+            .from('teams')
+            .select('*')
+            .in('id', uniqueTeamIds);
+            
+          if (teamsError) throw teamsError;
+          
+          // Create a map of team IDs to team objects
+          const teamsMap = new Map<string, Team>();
+          teamsData?.forEach(team => {
+            teamsMap.set(team.id, {
+              id: team.id,
+              name: team.name,
+              logo: team.logo || "/placeholder.svg",
+              country: team.country
+            });
+          });
+          
+          // Transform raw data into Match objects
+          const formattedMatches: Match[] = matchesData.map(match => {
+            const homeTeam = teamsMap.get(match.home_team_id) as Team;
+            const awayTeam = teamsMap.get(match.away_team_id) as Team;
+            
+            // Find championship from mock data for now
+            const championship = championships.find(c => c.id === match.championship_id) || {
+              id: match.championship_id,
+              name: "Campeonato",
+              logo: "/placeholder.svg",
+              country: "Brasil",
+              teams: []
+            };
+            
+            return {
+              id: match.id,
+              homeTeam,
+              awayTeam,
+              championship,
+              date: new Date(match.date),
+              status: match.status as 'scheduled' | 'live' | 'finished',
+              homeScore: match.home_score,
+              awayScore: match.away_score,
+              predictionCost: match.prediction_cost,
+              prize: match.prize
+            };
+          });
+          
+          setMatches(formattedMatches);
+        }
+      } catch (error) {
+        console.error("Error fetching matches:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMatches();
+  }, []);
   
   const filteredMatches = matches.filter(match => {
     const matchesSearch = match.homeTeam.name.toLowerCase().includes(filter.toLowerCase()) || 
                          match.awayTeam.name.toLowerCase().includes(filter.toLowerCase());
     
-    const matchesChampionship = championshipFilter ? 
-                              match.championship.id === championshipFilter : 
-                              true;
+    const matchesChampionship = championshipFilter === "all" ? 
+                              true : 
+                              match.championship.id === championshipFilter;
     
     return matchesSearch && matchesChampionship;
   });
@@ -63,7 +153,12 @@ const Matches = () => {
             </div>
           </div>
           
-          {filteredMatches.length > 0 ? (
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+              <span>Carregando partidas...</span>
+            </div>
+          ) : filteredMatches.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMatches.map(match => (
                 <MatchCard key={match.id} match={match} />

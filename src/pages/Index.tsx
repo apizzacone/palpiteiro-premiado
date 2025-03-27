@@ -6,51 +6,134 @@ import TeamCard from "@/components/TeamCard";
 import ChampionshipCard from "@/components/ChampionshipCard";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
-import { matches, teams, championships } from "@/lib/mock-data";
+import { championships } from "@/lib/mock-data";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Team } from "@/types";
+import { Team, Match } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const [loading, setLoading] = useState(true);
   const [featuredTeams, setFeaturedTeams] = useState<Team[]>([]);
+  const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   
-  // Only show first 3 of each for the homepage
-  const upcomingMatches = matches.slice(0, 3);
+  // Only show first 3 championships for the homepage
   const featuredChampionships = championships.slice(0, 3);
 
   useEffect(() => {
-    const fetchTeams = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        
+        // Fetch teams
+        const { data: teamsData, error: teamsError } = await supabase
           .from('teams')
           .select('*')
           .order('name')
           .limit(6);
           
-        if (error) throw error;
+        if (teamsError) throw teamsError;
         
-        const teamsData: Team[] = data?.map(team => ({
-          id: team.id,
-          name: team.name,
-          country: team.country,
-          logo: team.logo || "/placeholder.svg"
-        })) || [];
+        const teamsMap = new Map<string, Team>();
+        const formattedTeams: Team[] = teamsData?.map(team => {
+          const teamObj = {
+            id: team.id,
+            name: team.name,
+            country: team.country,
+            logo: team.logo || "/placeholder.svg"
+          };
+          teamsMap.set(team.id, teamObj);
+          return teamObj;
+        }) || [];
         
-        setFeaturedTeams(teamsData);
+        setFeaturedTeams(formattedTeams);
+        
+        // Fetch matches
+        const { data: matchesData, error: matchesError } = await supabase
+          .from('matches')
+          .select(`
+            id,
+            date,
+            prediction_cost,
+            prize,
+            status,
+            home_score,
+            away_score,
+            championship_id,
+            home_team_id,
+            away_team_id
+          `)
+          .order('date')
+          .limit(3);
+        
+        if (matchesError) throw matchesError;
+        
+        if (matchesData) {
+          // Get all team IDs from matches that aren't already in teamsMap
+          const teamIds = matchesData.flatMap(match => [match.home_team_id, match.away_team_id])
+            .filter(id => !teamsMap.has(id));
+          
+          const uniqueTeamIds = [...new Set(teamIds)];
+          
+          if (uniqueTeamIds.length > 0) {
+            const { data: additionalTeamsData, error: additionalTeamsError } = await supabase
+              .from('teams')
+              .select('*')
+              .in('id', uniqueTeamIds);
+              
+            if (additionalTeamsError) throw additionalTeamsError;
+            
+            additionalTeamsData?.forEach(team => {
+              teamsMap.set(team.id, {
+                id: team.id,
+                name: team.name,
+                logo: team.logo || "/placeholder.svg",
+                country: team.country
+              });
+            });
+          }
+          
+          // Transform raw data into Match objects
+          const formattedMatches: Match[] = matchesData.map(match => {
+            const homeTeam = teamsMap.get(match.home_team_id) as Team;
+            const awayTeam = teamsMap.get(match.away_team_id) as Team;
+            
+            // Find championship from mock data for now
+            const championship = championships.find(c => c.id === match.championship_id) || {
+              id: match.championship_id,
+              name: "Campeonato",
+              logo: "/placeholder.svg",
+              country: "Brasil",
+              teams: []
+            };
+            
+            return {
+              id: match.id,
+              homeTeam,
+              awayTeam,
+              championship,
+              date: new Date(match.date),
+              status: match.status as 'scheduled' | 'live' | 'finished',
+              homeScore: match.home_score,
+              awayScore: match.away_score,
+              predictionCost: match.prediction_cost,
+              prize: match.prize
+            };
+          });
+          
+          setUpcomingMatches(formattedMatches);
+        }
       } catch (error) {
-        console.error('Error fetching teams:', error);
-        // Fallback to mock data if there's an error
-        setFeaturedTeams(teams.slice(0, 6));
+        console.error('Error fetching data:', error);
+        setFeaturedTeams([]);
+        setUpcomingMatches([]);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchTeams();
+    fetchData();
   }, []);
 
   return (
@@ -69,11 +152,24 @@ const Index = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {upcomingMatches.map(match => (
-              <MatchCard key={match.id} match={match} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+              <span>Carregando partidas...</span>
+            </div>
+          ) : upcomingMatches.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {upcomingMatches.map(match => (
+                <MatchCard key={match.id} match={match} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                Nenhuma partida disponível no momento.
+              </p>
+            </div>
+          )}
         </div>
       </section>
       
@@ -88,7 +184,7 @@ const Index = () => {
           </div>
           
           {loading ? (
-            <div className="flex justify-center items-center py-10">
+            <div className="flex justify-center items-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
               <span>Carregando times...</span>
             </div>
