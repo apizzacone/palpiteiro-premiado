@@ -201,6 +201,62 @@ export type Database = {
         }
         Relationships: []
       }
+      system_backups: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          size: number
+          tables: string[]
+        }
+        Insert: {
+          created_at: string
+          description: string
+          id: string
+          size: number
+          tables: string[]
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          size?: number
+          tables?: string[]
+        }
+        Relationships: []
+      }
+      system_restore_logs: {
+        Row: {
+          backup_id: string
+          id: string
+          notes: string | null
+          restored_at: string
+          status: string
+        }
+        Insert: {
+          backup_id: string
+          id?: string
+          notes?: string | null
+          restored_at: string
+          status: string
+        }
+        Update: {
+          backup_id?: string
+          id?: string
+          notes?: string | null
+          restored_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_restore_logs_backup_id_fkey"
+            columns: ["backup_id"]
+            isOneToOne: false
+            referencedRelation: "system_backups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           country: string

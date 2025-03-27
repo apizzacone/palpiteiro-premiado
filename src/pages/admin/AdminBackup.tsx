@@ -1,262 +1,258 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { format, formatDistance } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Download, Upload, FileJson, Clock, RotateCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, HardDrive, RotateCcw, Plus, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
-// Interface for the backup item
-interface BackupItem {
+interface Backup {
   id: string;
-  created_at: string;
   description: string;
+  created_at: string;
   size: number;
   tables: string[];
 }
 
 const AdminBackup = () => {
-  const { toast } = useToast();
-  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
-  const [isRestoringBackup, setIsRestoringBackup] = useState(false);
-  const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [backups, setBackups] = useState<Backup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [backupDescription, setBackupDescription] = useState("");
-  const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
-  
-  // Function to create a backup
-  const createBackup = async () => {
+
+  const fetchBackups = async () => {
     try {
-      setIsCreatingBackup(true);
+      setLoading(true);
+
+      const { data: backupData, error } = await supabase.functions.invoke('list-backups');
       
-      // In a real implementation, this would call a Supabase Edge Function
-      // that handles the database backup process
-      const { data, error } = await supabase.functions.invoke("create-backup", {
-        body: { description: backupDescription || `Backup ${new Date().toISOString()}` }
+      if (error) throw error;
+      
+      setBackups(backupData);
+    } catch (error) {
+      console.error('Error fetching backups:', error);
+      toast.error('Erro ao carregar backups');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackups();
+  }, []);
+
+  const handleCreateBackup = async () => {
+    try {
+      setCreating(true);
+      
+      const { data, error } = await supabase.functions.invoke('create-backup', {
+        body: { description: backupDescription.trim() || `Backup do sistema ${new Date().toLocaleDateString()}` }
       });
       
       if (error) throw error;
       
-      toast({
-        title: "Backup created successfully",
-        description: `Created backup: ${data?.id}`,
-      });
-      
-      // Refresh backups list
-      fetchBackups();
-      setBackupDescription("");
+      if (data?.success) {
+        toast.success('Backup criado com sucesso!');
+        setBackupDescription("");
+        await fetchBackups();
+      }
     } catch (error) {
-      console.error("Error creating backup:", error);
-      toast({
-        title: "Failed to create backup",
-        description: "There was an error creating the backup. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error creating backup:', error);
+      toast.error('Erro ao criar backup');
     } finally {
-      setIsCreatingBackup(false);
+      setCreating(false);
     }
   };
-  
-  // Function to restore from a backup
-  const restoreBackup = async (backupId: string) => {
-    if (!confirm("Are you sure you want to restore this backup? This will overwrite current data.")) {
-      return;
-    }
-    
+
+  const handleRestoreBackup = async (backupId: string) => {
     try {
-      setIsRestoringBackup(true);
+      setRestoring(true);
+      setRestoringId(backupId);
       
-      // In a real implementation, this would call a Supabase Edge Function
-      // that handles the database restore process
-      const { data, error } = await supabase.functions.invoke("restore-backup", {
+      const { data, error } = await supabase.functions.invoke('restore-backup', {
         body: { backupId }
       });
       
       if (error) throw error;
       
-      toast({
-        title: "Backup restored successfully",
-        description: "The system has been restored from the selected backup.",
-      });
+      if (data?.success) {
+        toast.success(data.message || 'Sistema restaurado com sucesso!');
+      }
     } catch (error) {
-      console.error("Error restoring backup:", error);
-      toast({
-        title: "Failed to restore backup",
-        description: "There was an error restoring the backup. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error restoring backup:', error);
+      toast.error('Erro ao restaurar o sistema');
     } finally {
-      setIsRestoringBackup(false);
+      setRestoring(false);
+      setRestoringId(null);
     }
   };
-  
-  // Function to fetch available backups
-  const fetchBackups = async () => {
-    try {
-      // In a real implementation, this would call a Supabase Edge Function
-      // that retrieves the list of available backups
-      const { data, error } = await supabase.functions.invoke("list-backups");
-      
-      if (error) throw error;
-      
-      setBackups(data || []);
-    } catch (error) {
-      console.error("Error fetching backups:", error);
-      toast({
-        title: "Failed to fetch backups",
-        description: "There was an error fetching the backup list. Please try again.",
-        variant: "destructive",
-      });
-    }
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    else return (bytes / 1073741824).toFixed(1) + ' GB';
   };
-  
-  // Load backups when component mounts
-  useState(() => {
-    fetchBackups();
-  });
-  
-  // Format file size to human-readable format
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B";
-    else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + " KB";
-    else if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + " MB";
-    else return (bytes / 1073741824).toFixed(2) + " GB";
-  };
-  
-  // Render manual backup UI
-  const renderManualBackup = () => (
-    <div className="space-y-4">
-      <div className="grid gap-2">
-        <label htmlFor="backup-description" className="text-sm font-medium">
-          Backup Description (optional)
-        </label>
-        <input 
-          id="backup-description"
-          type="text" 
-          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          placeholder="Enter a description for this backup"
-          value={backupDescription}
-          onChange={(e) => setBackupDescription(e.target.value)}
-        />
-      </div>
-      
-      <Button 
-        onClick={createBackup} 
-        disabled={isCreatingBackup}
-        className="w-full"
-      >
-        {isCreatingBackup ? (
-          <>
-            <RotateCw className="mr-2 h-4 w-4 animate-spin" />
-            Creating Backup...
-          </>
-        ) : (
-          <>
-            <Download className="mr-2 h-4 w-4" />
-            Create Backup Now
-          </>
-        )}
-      </Button>
-    </div>
-  );
-  
-  // Render list of backups
-  const renderBackupsList = () => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Available Backups</h3>
-        <Button variant="outline" size="sm" onClick={fetchBackups}>
-          <RotateCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-      
-      {backups.length === 0 ? (
-        <div className="py-8 text-center text-muted-foreground">
-          <FileJson className="mx-auto h-12 w-12 text-muted-foreground/50" />
-          <p className="mt-2">No backups available. Create your first backup to get started.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {backups.map((backup) => (
-            <Card 
-              key={backup.id} 
-              className={`cursor-pointer transition-all ${selectedBackup === backup.id ? 'border-primary' : ''}`}
-              onClick={() => setSelectedBackup(backup.id)}
-            >
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-medium">{backup.description}</div>
-                    <div className="text-sm text-muted-foreground flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {format(new Date(backup.created_at), "PPpp")}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Size: {formatFileSize(backup.size)} • {backup.tables.length} tables
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      restoreBackup(backup.id);
-                    }}
-                    disabled={isRestoringBackup}
-                  >
-                    {isRestoringBackup && selectedBackup === backup.id ? (
-                      <RotateCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    <span className="ml-2">Restore</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-  
+
   return (
     <AdminLayout>
-      <Card>
-        <CardHeader>
-          <CardTitle>System Backup & Restore</CardTitle>
-          <CardDescription>
-            Create backups of your data and restore your system if needed
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="create">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="create">Create Backup</TabsTrigger>
-              <TabsTrigger value="restore">Restore Backup</TabsTrigger>
-            </TabsList>
-            <TabsContent value="create" className="mt-4 space-y-4">
-              <div className="text-sm text-muted-foreground mb-2">
-                Create a backup of your database. You will be able to restore your system to this state later.
-              </div>
-              <Separator />
-              {renderManualBackup()}
-            </TabsContent>
-            <TabsContent value="restore" className="mt-4 space-y-4">
-              <div className="text-sm text-muted-foreground mb-2">
-                Restore your system from a previously created backup. This will overwrite your current data.
-              </div>
-              <Separator />
-              {renderBackupsList()}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <div className="mb-6 flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Backup e Restauração do Sistema</h2>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2 w-64">
+            <Input
+              placeholder="Descrição do backup"
+              value={backupDescription}
+              onChange={(e) => setBackupDescription(e.target.value)}
+              disabled={creating}
+            />
+          </div>
+          <Button 
+            onClick={handleCreateBackup} 
+            disabled={creating}
+          >
+            {creating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Criando...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" /> Criar Backup
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-6 mb-6">
+        <div className="flex items-center gap-4">
+          <HardDrive className="h-8 w-8 text-primary" />
+          <div>
+            <h3 className="text-lg font-medium">Backup e Restauração</h3>
+            <p className="text-sm text-muted-foreground">
+              Crie backups do sistema e restaure-os quando necessário. Os backups incluem todos os dados do sistema.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+          <span>Carregando backups...</span>
+        </div>
+      ) : backups.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Data de Criação</TableHead>
+              <TableHead>Tamanho</TableHead>
+              <TableHead>Tabelas</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {backups.map((backup) => (
+              <TableRow key={backup.id}>
+                <TableCell className="font-medium">{backup.description}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span>{format(new Date(backup.created_at), "dd/MM/yyyy HH:mm")}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistance(new Date(backup.created_at), new Date(), { 
+                        addSuffix: true,
+                        locale: ptBR 
+                      })}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>{formatSize(backup.size)}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {backup.tables.map((table) => (
+                      <span 
+                        key={table} 
+                        className="bg-secondary text-secondary-foreground rounded-full px-2 py-1 text-xs"
+                      >
+                        {table}
+                      </span>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Restaurar
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Restaurar sistema</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja restaurar o sistema para o estado deste backup? 
+                          Esta ação irá substituir todos os dados atuais.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleRestoreBackup(backup.id)}
+                          disabled={restoring}
+                        >
+                          {restoring && restoringId === backup.id ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Restaurando...
+                            </>
+                          ) : (
+                            'Confirmar Restauração'
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="text-center py-12 border rounded-lg bg-muted/50">
+          <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Nenhum backup encontrado</h3>
+          <p className="text-muted-foreground">
+            Nenhum backup foi criado ainda. Clique em "Criar Backup" para fazer seu primeiro backup.
+          </p>
+        </div>
+      )}
     </AdminLayout>
   );
 };
