@@ -1,5 +1,5 @@
 
-import { Football, Trophy, Users } from "lucide-react";
+import { Trophy, Users, Goal } from "lucide-react";
 
 const features = [
   {
@@ -8,7 +8,7 @@ const features = [
     description: "Crie sua conta gratuita e comece a participar dos palpites em poucos minutos."
   },
   {
-    icon: <Football className="w-10 h-10 text-primary" />,
+    icon: <Goal className="w-10 h-10 text-primary" />,
     title: "Faça palpites em partidas",
     description: "Use seus créditos para palpitar nos resultados das partidas de futebol."
   },
