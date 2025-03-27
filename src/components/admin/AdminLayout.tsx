@@ -7,7 +7,8 @@ import {
   Calendar, 
   LayoutDashboard,
   Shield,
-  CreditCard
+  CreditCard, 
+  Database
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
@@ -85,6 +86,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   <Link to="/admin/credits">
                     <CreditCard />
                     <span>Créditos</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link to="/admin/backup">
+                    <Database />
+                    <span>Backup & Restore</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

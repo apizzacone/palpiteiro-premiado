@@ -17,6 +17,7 @@ import AdminTeams from "./pages/admin/AdminTeams";
 import AdminChampionships from "./pages/admin/AdminChampionships";
 import AdminMatches from "./pages/admin/AdminMatches";
 import AdminCredits from "./pages/admin/AdminCredits";
+import AdminBackup from "./pages/admin/AdminBackup";
 import AuthPage from "./pages/auth/AuthPage";
 import BuyCredits from "./pages/user/BuyCredits";
 import Profile from "./pages/user/Profile";
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/admin/championships" element={<AdminChampionships />} />
             <Route path="/admin/matches" element={<AdminMatches />} />
             <Route path="/admin/credits" element={<AdminCredits />} />
+            <Route path="/admin/backup" element={<AdminBackup />} />
             
             {/* Rota 404 */}
             <Route path="*" element={<NotFound />} />
